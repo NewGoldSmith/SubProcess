@@ -104,34 +104,34 @@ using namespace std;
 
 int main() {
 	{
-		string str;
+		string str;													// ➀
 		SubProcess sp;
 		if (!sp.Popen(R"(cmd.exe)"))
 			return 1;
 		if (!(sp.Await(3000) >> cout))
 			return 1;
 
-		sp.SetUseStdErr(true);
+		sp.SetUseStdErr(true);									// ②
 
-		if (!(sp >> cout)) {
+		if (!(sp >> cout)) {										// ③
 			DWORD result = sp.GetLastError();
 			cout << "\n\nError code is " << result << endl;
 			sp.ResetFlag();
 		}
 
-		if (!(sp << "chcp" << endl))
+		if (!(sp << "chcp" << endl))							// ④
 			return 1;
 		if (!(sp >> str))
 			return 1;
 		cout << str;
 
-		if (!(sp << "chcp" << "\n"))
+		if (!(sp << "chcp" << "\n"))							// ⑤
 			return 1;
 		for (; sp.IsReadable();){
 			sp >> cout;
 		}
 
-		if (!(sp << "chcp"))
+		if (!(sp << "chcp"))										// ⑥
 			return 1;
 		if (sp.IsReadable()) {
 			if (!(sp >> cout))
@@ -150,7 +150,7 @@ int main() {
 				return 1;
 		}
 
-		if (!(sp << "chcp " ))
+		if (!(sp << "chcp " ))									// ⑦
 			return 1;
 		cout << "\n\nPlease enter the code page number." << endl;
 		if (!(sp << cin))
@@ -162,7 +162,7 @@ int main() {
 				return 1;
 		}
 
-		if (!(sp << "exit" << endl))
+		if (!(sp << "exit" << endl))							// ⑧
 			return 1;
 		for (; sp.IsReadable();) {
 			sp.Await(1000) >> cout;
@@ -170,13 +170,13 @@ int main() {
 				return 1;
 		}
 
-		if (!(sp.WaitForTermination(INFINITE)))
+		if (!(sp.WaitForTermination(INFINITE)))			// ⑨
 			return 1;
 
-		DWORD dw = sp.GetExitCodeSubProcess();
+		DWORD dw = sp.GetExitCodeSubProcess();				// ⑩
 		cout << "\nExit code is " << dw << endl;
 
-		sp.Pclose();
+		sp.Pclose();												// ⑪
 
 		cout << "\nThe SubProcess demo has successfully concluded." << endl;
 	}
