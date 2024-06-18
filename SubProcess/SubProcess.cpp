@@ -319,7 +319,6 @@ SubProcess &SubProcess::operator<<(std::istream &is) {
 	std::string line;
 	std::getline(is, line);
 	*this << line << std::endl;
-	//Flush();
 	return *this;
 }
 
