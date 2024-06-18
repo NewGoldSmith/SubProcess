@@ -28,6 +28,12 @@ class  SubProcess {
 	struct OVERLAPPED_CUSTOM;
 public:
 	SubProcess()noexcept;
+	SubProcess(SubProcess &) = delete;
+	SubProcess(SubProcess &&) = delete;
+	SubProcess &operator=(SubProcess &) = delete;
+	SubProcess &operator=(SubProcess &&) = delete;
+	SubProcess &operator()(SubProcess &) = delete;
+	SubProcess &operator()(SubProcess &&) = delete;
 	~SubProcess() {};
 	void ResetFlag()noexcept;
 	DWORD SetTimeOut(DWORD uiTime)noexcept;
