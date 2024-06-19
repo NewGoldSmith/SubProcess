@@ -15,17 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Test2.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
+    <None Include="cpp.hint" />
+    <None Include="SubProcess.md" />
+    <None Include="Zenn-SubProcess.md" />
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="SubProcess.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MemoryLoan.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="SubProcess.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

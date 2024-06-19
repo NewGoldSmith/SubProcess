@@ -6,17 +6,16 @@
  * @author Gold Smith
  */
 #pragma once
-#define STRINGIZE_(x) #x
-#define STRINGIZE(x) STRINGIZE_(x)
 
 #include <Windows.h>
 #include <string>
 #include <iomanip>
 #include <iosfwd>
 #include <xiosbase>
-
+#include "../CommonLib/defSTRINGIZE.h"
+#include "../CommonLib/MemoryLoan.h"
 #include "../Debug_fnc/debug_fnc.h"
-#include "./MemoryLoan.h"
+
 #pragma comment(lib,  "../Debug_fnc/" STRINGIZE($CONFIGURATION) "/Debug_fnc-" STRINGIZE($CONFIGURATION) ".lib")
 
 class  SubProcess {
@@ -47,7 +46,7 @@ public:
 	explicit operator bool() const noexcept { return !__numErr; }
 	bool IsActive();
 	bool IsReadable();
-	bool SetUseStdErr(bool is_use);
+	bool SetUseStdErr(bool is_use)noexcept;
 	SubProcess &operator<<(const std::string &str);
 	SubProcess &operator<< (std::istream &is);
 	SubProcess &operator<<(std::ostream &(*const manipulator)(std::ostream &));
@@ -58,12 +57,12 @@ public:
 	SubProcess &operator>>(std::string &str);
 	SubProcess &operator>>(std::ostream &os);
 	friend std::ostream &operator<<(std::ostream &os, SubProcess &sp);
-	SubProcess &Await(DWORD numAwaitTime);
-	SubProcess &CErr();
+	SubProcess &Await(DWORD numAwaitTime)noexcept;
+	SubProcess &CErr()noexcept;
+	SubProcess &Raw()noexcept;
 private:
 	bool __ClosePipes();
 	bool __FlushWrite();
-	bool __FlushRead();
 	bool __CancelIo();
 	bool __WriteToCli(const std::string &str);
 	bool __ReadFromCli();
@@ -82,6 +81,7 @@ private:
 	MemoryLoan< OVERLAPPED_CUSTOM> __mlOL;
 	bool __bfIsUseStdErr{};
 	bool __bfIsErrOut{};
+	bool __bfIsRaw{};
 	::HANDLE __hSevR{}, __hSevW{}, __hCliR{}, __hCliW{}, __hErrW{}, __hErrR{};
 	DWORD __numErr{ 0 };
 	DWORD __numAwait{ 0 };

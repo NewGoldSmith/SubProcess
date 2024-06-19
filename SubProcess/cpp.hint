@@ -1,0 +1,7 @@
+// ヒント ファイルは、Visual Studio IDE が Visual C++ 識別子を解釈するのに役立ちます
+// 関数およびマクロの名前などです。
+// 詳細については次を参照してください https://go.microsoft.com/fwlink/?linkid=865984
+#define BUFFER_SIZE
+#define offsetof(s, m) ((::size_t)&reinterpret_cast<char const volatile&>((((s*)0)->m)))
+#define offsetof(s, m) ((size_t)&(((s*)0)->m))
+#define offsetof(s, m) __builtin_offsetof(s,m)

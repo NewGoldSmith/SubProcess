@@ -29,12 +29,11 @@ SubProcess::SubProcess()noexcept:
 		}
 
 		if (pOL->__ol.hEvent) {
-			pOL->self->__ReadFromCliErr();
-			if (pOL->self->__bfIsUseStdErr) {
+			if (pOL->self->__bfIsUseStdErr)
 				pOL->self->__FromChildBufErr.write(pOL->__buffer, bytesTransfered);
-			} else {
+			else
 				pOL->self->__FromChildBuf.write(pOL->__buffer, bytesTransfered);
-			}
+			pOL->self->__ReadFromCliErr();
 		} else {
 			pOL->self->__FromChildBuf.write(pOL->__buffer, bytesTransfered);
 			pOL->self->__ReadFromCli();
@@ -61,7 +60,7 @@ SubProcess::SubProcess()noexcept:
 	
 };
 
-bool SubProcess::Popen(const std::string &strCommand ) {
+bool SubProcess::Popen(const std::string &strCommand) {
 	// エラーがあったか確認。
 	if (__numErr)
 		return false;
@@ -287,12 +286,21 @@ SubProcess &SubProcess::operator<<(const std::string &strIn) {
 	if (__numErr)
 		return *this;
 
-	std::string str = strIn;
+	if (__bfIsRaw) {
+		__bfIsRaw = false;
+		__ToChildBuf << strIn;
+		if (!__WriteToCli(__ToChildBuf.str().c_str())) {
+			return *this;
+		}
+		__ToChildBuf.str("");
+		__ToChildBuf.clear();
+		return *this;
+	}
 
+	std::string str = strIn;
 	size_t start = 0;
 	size_t end = str.find('\n');
 	while (end != std::string::npos) {
-		//lines.push_back(str.substr(start, end - start + 1));  // 改行を含む
 		__ToChildBuf<< str.substr(start, end - start + 1);  // 改行を含む
 		if (!__WriteToCli(__ToChildBuf.str().c_str())) {
 			return *this;
@@ -316,10 +324,11 @@ SubProcess &SubProcess::operator<<(const std::string &strIn) {
 }
 
 SubProcess &SubProcess::operator<<(std::istream &is) {
+	if (__numErr)
+		return *this;
 	std::string line;
 	std::getline(is, line);
 	*this << line << std::endl;
-	//Flush();
 	return *this;
 }
 
@@ -345,8 +354,6 @@ SubProcess &SubProcess::operator<<(std::ostream &(*const manipulator)(std::ostre
 
 
 bool SubProcess::__FlushWrite() {
-	if (__numErr)
-		return false;
 	if (__ToChildBuf.str().size()) {
 		if (!__WriteToCli(__ToChildBuf.str())) {
 			return false;
@@ -354,19 +361,6 @@ bool SubProcess::__FlushWrite() {
 		__ToChildBuf.str("");  // Clear the buffer.
 	}
 	__ToChildBuf.clear();
-	return true;
-}
-
-bool SubProcess::__FlushRead() {
-	if (__numErr)
-		return false;
-	if (!__StrongReadFromCli(__numTimeOut)) {
-		if (__numErr == WAIT_TIMEOUT) {
-			__numErr = 0;
-		} else {
-			return false;
-		}
-	}
 	return true;
 }
 
@@ -389,7 +383,7 @@ SubProcess &SubProcess::Flush() {
 	if (__numErr)
 		return *this;
 	__FlushWrite();
-	__FlushRead();
+	//__FlushRead();
 	return *this;
 }
 
@@ -419,18 +413,22 @@ SubProcess &SubProcess::operator>>(std::string &str) {
 		timeout = __numTimeOut;
 	}
 
-	if (__FromChildBuf.str().empty()) {
-		if (!__StrongReadFromCli(timeout)) {
-			return *this;
-		}
-	}
-
 	if (__bfIsErrOut) {
+		__bfIsErrOut = false;
+		if (__FromChildBufErr.str().empty()) {
+			if (!__StrongReadFromCli(timeout)) {
+				return *this;
+			}
+		}
 		str = move(__FromChildBufErr.str());
 		__FromChildBufErr.str("");
 		__FromChildBufErr.clear();
-		__bfIsErrOut = false;
 	} else {
+		if (__FromChildBuf.str().empty()) {
+			if (!__StrongReadFromCli(timeout)) {
+				return *this;
+			}
+		}
 		str = move(__FromChildBuf.str());
 		__FromChildBuf.str("");
 		__FromChildBuf.clear();
@@ -447,13 +445,18 @@ SubProcess &SubProcess::operator>>(std::ostream &os) {
 	return *this;
 }
 
-SubProcess &SubProcess::Await(DWORD numAwaitTime) {
+SubProcess &SubProcess::Await(DWORD numAwaitTime)noexcept {
 	__numAwait = numAwaitTime;
 	return *this;
 }
 
-SubProcess &SubProcess::CErr() {
+SubProcess &SubProcess::CErr()noexcept {
 	__bfIsErrOut = true;
+	return *this;
+}
+
+SubProcess &SubProcess::Raw() noexcept {
+	__bfIsRaw = true;
 	return *this;
 }
 
@@ -488,7 +491,7 @@ bool SubProcess::IsReadable(){
 	return false;
 }
 
-bool SubProcess::SetUseStdErr(bool is_use) {
+bool SubProcess::SetUseStdErr(bool is_use)noexcept {
 	bool tmp = __bfIsUseStdErr;
 	__bfIsUseStdErr = is_use;
 	return tmp;
@@ -669,27 +672,34 @@ DWORD SubProcess::SetTimeOut(DWORD uiTime)noexcept {
 }
 
 bool SubProcess::__WriteToCli(const std::string &str) {
-	OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = {});
-	std::copy(str.begin(), str.end(), pOL->__buffer);
-	pOL->self = this;
-	DWORD dw;
-	if (!::WriteFileEx(
-		__hSevW
-		, &(pOL->__buffer)
-		, (DWORD)str.size()
-		, (::OVERLAPPED *)pOL
-		, __pfWriteToChildCompleted)) {
-		dw = ::GetLastError();
-		if (dw == WAIT_IO_COMPLETION) {
-			::SleepEx(__numContinuousTimeOut, TRUE);
-			return TRUE;
-		} else {
-			__numErr = dw;
-			debug_fnc::ENOut(dw);
-			return FALSE;
+	size_t pos = 0;
+	while (pos < str.size()) {
+		size_t len = std::min<size_t>(str.size() - pos, static_cast<size_t>(BUFFER_SIZE));
+		std::string chunk = str.substr(pos, len);
+		pos += len;
+
+		OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = {});
+		std::copy(chunk.begin(), chunk.end(), pOL->__buffer);
+		pOL->self = this;
+		DWORD dw;
+		if (!::WriteFileEx(
+			__hSevW
+			, &(pOL->__buffer)
+			, (DWORD)chunk.size()
+			, (::OVERLAPPED *)pOL
+			, __pfWriteToChildCompleted)) {
+			dw = ::GetLastError();
+			if (dw == WAIT_IO_COMPLETION) {
+				::SleepEx(__numContinuousTimeOut, TRUE);
+				continue;
+			} else {
+				__numErr = dw;
+				debug_fnc::ENOut(dw);
+				return FALSE;
+			}
 		}
+		::SleepEx(__numContinuousTimeOut, TRUE);
 	}
-	::SleepEx(__numContinuousTimeOut, TRUE);
 	return true;
 }
 
