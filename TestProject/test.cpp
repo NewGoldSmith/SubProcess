@@ -1,6 +1,6 @@
 ﻿// test.cpp
 #include <iostream>
-#include "MemoryLoan.h"
+#include "../CommonLib/MemoryLoan.h"
 
 using namespace std;
 
