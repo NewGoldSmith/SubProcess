@@ -501,7 +501,7 @@ inline std::wstring SubProcess::__AtoW(const std::string &str)const{
 	if (str.empty()) {
 		return std::wstring();
 	}
-	std::wstring wstr(str.size(), L'\0');
+	std::wstring wstr(MAX_PATH, L'\0');
 	//ANSIからユニコードへ変換
 	int size(0);
 	if (!(size = ::MultiByteToWideChar(
@@ -511,7 +511,8 @@ inline std::wstring SubProcess::__AtoW(const std::string &str)const{
 		, static_cast<int>(str.size())
 		, wstr.data()
 		, static_cast<int>(wstr.size())))) {
-		debug_fnc::EOut;
+		DWORD dw = ::GetLastError();
+		debug_fnc::ENOut(dw);
 		wstr.resize(0);
 		return wstr;
 	}
