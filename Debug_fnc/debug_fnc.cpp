@@ -54,7 +54,7 @@ void debug_fnc::print_binary(uint8_t b)
 
 void debug_fnc::dout_binary(uint8_t b)
 {
-	::OutputDebugStringA((binary_to_string(b) + "\r\n").c_str());
+	OutputDebugStringA((binary_to_string(b) + "\r\n").c_str());
 }
 
 std::string debug_fnc::binary_to_string(uint16_t b)
@@ -73,7 +73,7 @@ void debug_fnc::print_binary(uint16_t b)
 
 void debug_fnc::dout_binary(uint16_t b)
 {
-	::OutputDebugStringA((binary_to_string(b) + "\r\n").c_str());
+	OutputDebugStringA((binary_to_string(b) + "\r\n").c_str());
 }
 
 std::string debug_fnc::binary_to_string(uint64_t b)

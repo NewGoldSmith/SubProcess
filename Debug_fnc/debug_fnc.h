@@ -14,8 +14,7 @@
 #include <iostream>
 #include <vector>
 #include <minwindef.h>
-#define STRINGIZE_(x) #x
-#define STRINGIZE(x) STRINGIZE_(x)
+#include "../CommonLib/defSTRINGIZE.h"
 
 namespace debug_fnc {
 	std::string binary_to_string(uint8_t b);
@@ -43,7 +42,7 @@ namespace debug_fnc {
 #define _D(s) {::OutputDebugStringA((std::string(__FILE__ "(" STRINGIZE(__LINE__) "):")+std::string(s)+"\r\n").c_str());}
 #define _DOB(b){::OutputDebugStringA(__FILE__ "(" STRINGIZE(__LINE__)"):" #b "\r\n");debug_fnc::dout_binary(b);}
 #define _DOS(b){::OutputDebugStringA(__FILE__ "(" STRINGIZE(__LINE__)"):" #b "\r\n");debug_fnc::dout_status(b);}
-	/// <summary>
+/// <summary>
 /// デバッグ変数名と値を出力。NODEBUG時には評価されない。
 /// </summary>
 #define _DVV(s) {::OutputDebugStringA((std::string(__FILE__)+ "(" + STRINGIZE(__LINE__) + "):"+ #s + ":" + std::to_string(s) + "\r\n").c_str());}
