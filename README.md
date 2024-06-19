@@ -18,7 +18,7 @@ https://zenn.dev/goldsmith/articles/988bbbdbb3e9ce
 ## SubProcessクラスの使い方のデモコード
 ### この記事で使うソースコードへのリンク
 [GitHubへのリンクはここです。Visual Studio 2022用に設定されたslnファイルもあります。](https://github.com/NewGoldSmith/SubProcess "https://github.com/NewGoldSmith/SubProcess")
-　SubProcessプロジェクトをスタートアッププロジェクトに設定し、`F5`を押下すると実行できます。
+　TestProjectをスタートアッププロジェクトに設定し、`F5`を押下すると実行できます。
 　ソースコードの中にはデバッグ用のライブラリも含んでいます。本質ではない為、今回は説明を割愛いたします。
 
 > **注意：**
