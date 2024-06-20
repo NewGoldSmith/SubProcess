@@ -1,7 +1,6 @@
 ﻿// test2.cpp
 #include <crtdbg.h>
-#include "../SubProcess/SubProcess.h"
-#include "./test2.h"
+#include "test2.h"
 using namespace std;
 
 int main() {
