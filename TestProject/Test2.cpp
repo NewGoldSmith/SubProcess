@@ -5,34 +5,34 @@ using namespace std;
 
 int main() {
    {
-      string str;												// １
+      string str;										// １
       SubProcess sp;
       if (!sp.Popen(R"(cmd.exe)"))
          return 1;
       if (!(sp.Await(3000) >> cout))
          return 1;
 
-      sp.SetUseStdErr(true);									// ２
+      sp.SetUseStdErr(true);						// ２
 
-      if (!(sp >> cout)) {									// ３
+      if (!(sp >> cout)) {							// ３
          DWORD result = sp.GetLastError();
          cout << "\n\nError code is " << result << endl;
          sp.ResetFlag();
       }
 
-      if (!(sp << "chcp" << endl))							// ４
+      if (!(sp << "chcp" << endl))				// ４
          return 1;
       if (!(sp >> str))
          return 1;
       cout << str;
 
-      if (!(sp << "chcp" << "\n"))							// ５
+      if (!(sp << "chcp" << "\n"))				// ５
          return 1;
       for (; sp.IsReadable();) {
          sp >> cout;
       }
 
-      if (!(sp << "chcp"))									// ６
+      if (!(sp << "chcp"))							// ６
          return 1;
       if (sp.IsReadable()) {
          if (!(sp >> cout))
@@ -51,7 +51,7 @@ int main() {
             return 1;
       }
 
-      if (!(sp << "chcp "))							// ７
+      if (!(sp << "chcp "))						// ７
          return 1;
       cout << "\n\nPlease enter the code page number." << endl;
       if (!(sp << cin))
@@ -63,7 +63,7 @@ int main() {
             return 1;
       }
 
-      if (!(sp << "exit" << endl))						// ８
+      if (!(sp << "exit" << endl))				// ８
          return 1;
       for (; sp.IsReadable();) {
          sp.Await(1000) >> cout;
@@ -71,13 +71,13 @@ int main() {
             return 1;
       }
 
-      if (!(sp.WaitForTermination(INFINITE)))			    // ９
+      if (!(sp.WaitForTermination(INFINITE)))// ９
          return 1;
 
-      DWORD dw = sp.GetExitCodeSubProcess();				// １０
+      DWORD dw = sp.GetExitCodeSubProcess();	// １０
       cout << "\nExit code is " << dw << endl;
 
-      sp.Pclose();										// １１
+      sp.Pclose();									// １１
 
       cout << "\nThe SubProcess demo has successfully concluded." << endl;
    }
