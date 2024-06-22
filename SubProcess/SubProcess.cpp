@@ -547,6 +547,7 @@ bool SubProcess::__ReadFromCli() {
 			::SleepEx(__numContinuousTimeOut, TRUE);
 			return TRUE;
 		} else {
+			__numErr = dw;
 			debug_fnc::ENOut(dw);
 			return FALSE;
 		}
@@ -570,6 +571,7 @@ bool SubProcess::__ReadFromCliErr() {
 			::SleepEx(__numContinuousTimeOut, TRUE);
 			return TRUE;
 		} else {
+			__numErr = dw;
 			debug_fnc::ENOut(dw);
 			return FALSE;
 		}
