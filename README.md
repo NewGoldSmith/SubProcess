@@ -4,11 +4,9 @@
 　そんなニッチなプログラム技法に、興味がある方向けの記事です。
  また、このクラスの実装には、
 
-https://zenn.dev/goldsmith/articles/988bbbdbb3e9ce
+https://qiita.com/GoldSmith/items/1de197c10c05c054461a 
 
 の、メモリープールの技術を使って、OVERLAPPED構造体を使いまわしています。こちらの記事も、よろしければご覧ください。
-
-
 
 ##  Python subprocess.popenは、子プロセスとのパイプ通信が手軽に可能。
 　Windowsでも`_popen`があるじゃないか！と、思われるかもしれませんが、Microsoftドキュメントによると、
@@ -18,123 +16,123 @@ https://zenn.dev/goldsmith/articles/988bbbdbb3e9ce
 ## SubProcessクラスの使い方のデモコード
 ### この記事で使うソースコードへのリンク
 [GitHubへのリンクはここです。Visual Studio 2022用に設定されたslnファイルもあります。](https://github.com/NewGoldSmith/SubProcess "https://github.com/NewGoldSmith/SubProcess")
-　TestProjectをスタートアッププロジェクトに設定し、`F5`を押下すると実行できます。
+　TestProjectをスタートアッププロジェクトに設定し、ソリューションエクスプローラーから**test2.cpp**を選択し、プロパティの設定で**全般->ビルドから除外**項目を**いいえ**に設定し、**test2.cpp以外**は**はい**に設定し、ターゲットCPUをx64に設定し、`F5`を押下すると実行できます。
 　ソースコードの中にはデバッグ用のライブラリも含んでいます。本質ではない為、今回は説明を割愛いたします。
 
-> **注意：**
-> 　この記事で紹介しているソースコードは、公開した時点から変更を加えている事があります。そのため、元の記事とは異なる結果を得る場合があります。また、ソースコードを機能別にディレクトリを分ける等の、改善を行う可能性があります。
-
-
+:::note info
+ 　この記事で紹介しているソースコードは、公開した時点から変更を加えている事があります。そのため、元の記事とは異なる結果を得る場合があります。また、ソースコードを機能別にディレクトリを分ける等の、改善を行う可能性があります。
+:::
+ 
 ### デモコード
  　下記にデモコードを記載します。その後、番号のコメントが付けられているところの、解説を順次していきます。
-``` test2.cpp
+```test2.cpp
 // test2.cpp
 #include <crtdbg.h>
-#include "./SubProcess.h"
+#include "test2.h"
 using namespace std;
 
 int main() {
-	{
-		string str;								// １
-		SubProcess sp;
-		if (!sp.Popen(R"(cmd.exe)"))
-			return 1;
-		if (!(sp.Await(3000) >> cout))
-			return 1;
+   {
+      string str;										// １
+      SubProcess sp;
+      if (!sp.Popen(R"(cmd.exe)"))
+         return 1;
+      if (!(sp.Await(3000) >> cout))
+         return 1;
 
-		sp.SetUseStdErr(true);					// ２
+      sp.SetUseStdErr(true);						// ２
 
-		if (!(sp >> cout)) {					// ３
-			DWORD result = sp.GetLastError();
-			cout << "\n\nError code is " << result << endl;
-			sp.ResetFlag();
-		}
+      if (!(sp >> cout)) {							// ３
+         DWORD result = sp.GetLastError();
+         cout << "\n\nError code is " << result << endl;
+         sp.ResetFlag();
+      }
 
-		if (!(sp << "chcp" << endl))			// ４
-			return 1;
-		if (!(sp >> str))
-			return 1;
-		cout << str;
+      if (!(sp << "chcp" << endl))				// ４
+         return 1;
+      if (!(sp >> str))
+         return 1;
+      cout << str;
 
-		if (!(sp << "chcp" << "\n"))			// ５
-			return 1;
-		for (; sp.IsReadable();){
-			sp >> cout;
-		}
-		
-		if (!(sp << "chcp"))					// ６
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
-		if (!sp.Flush())
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
-		if (!(sp << endl))
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
+      if (!(sp << "chcp" << "\n"))				// ５
+         return 1;
+      for (; sp.IsReadable();) {
+         sp >> cout;
+      }
 
-    		if (!(sp << "chcp " ))				// ７
-			return 1;
-		cout << "\n\nPlease enter the code page number." << endl;
-		if (!(sp << cin))						
-			return 1;
-		if (!(sp >> cout))
-			return 1;
-		if (sp.CErr().IsReadable()) {
-			if (!(sp.CErr() >> cerr))
-				return 1;
-		}
+      if (!(sp << "chcp"))							// ６
+         return 1;
+      if (sp.IsReadable()) {
+         if (!(sp >> cout))
+            return 1;
+      }
+      if (!sp.Flush())
+         return 1;
+      if (sp.IsReadable()) {
+         if (!(sp >> cout))
+            return 1;
+      }
+      if (!(sp << endl))
+         return 1;
+      if (sp.IsReadable()) {
+         if (!(sp >> cout))
+            return 1;
+      }
 
-		if (!(sp << "exit" << endl))			// ８
-			return 1;
-		for (; sp.IsReadable();) {
-			sp.Await(1000) >> cout;
-			if (!sp.SleepEx(100))
-				return 1;
-		}
+      if (!(sp << "chcp "))						// ７
+         return 1;
+      cout << "\n\nPlease enter the code page number." << endl;
+      if (!(sp << cin))
+         return 1;
+      if (!(sp >> cout))
+         return 1;
+      if (sp.CErr().IsReadable()) {
+         if (!(sp.CErr() >> cerr))
+            return 1;
+      }
 
-     if (!(sp.WaitForTermination(INFINITE)))	// ９
-			return 1;
+      if (!(sp << "exit" << endl))				// ８
+         return 1;
+      for (; sp.IsReadable();) {
+         sp.Await(1000) >> cout;
+         if (!sp.SleepEx(100))
+            return 1;
+      }
 
-		DWORD dw = sp.GetExitCodeSubProcess();	// １０
-		cout << "\nExit code is " << dw << endl;
+      if (!(sp.WaitForTermination(INFINITE)))// ９
+         return 1;
 
-		sp.Pclose();							// １１
+      DWORD dw = sp.GetExitCodeSubProcess();	// １０
+      cout << "\nExit code is " << dw << endl;
 
-		cout << "\nThe SubProcess demo has successfully concluded." << endl;
-	}
-	_CrtDumpMemoryLeaks();
+      sp.Pclose();									// １１
+
+      cout << "\nThe SubProcess demo has successfully concluded." << endl;
+   }
+   _CrtDumpMemoryLeaks();
 }
 ```
- ### １、`cmd.exe`を子プロセスとして起動
-```test2.cpp
-		string str;								// １
+### １、`cmd.exe`を子プロセスとして起動
+ ```test2.cpp
+		string str;												// １
 		SubProcess sp;
 		if (!sp.Popen(R"(cmd.exe)"))
 			return 1;
 		if (!(sp.Await(3000) >> cout))
 			return 1;
-```
+ ```
 #### sp.Popen(R"(cmd.exe)")
 　子プロセスとしてcmd.exeを起動。
 #### sp.Await(3000) >> cout
 　cmd.exeは起動すると文字列を出力する事が予め判っているので、それを受け取り`std::cout`に出力。`Await(3000)`は３秒間待つという事です。非同期ですので、子プロセスが起動してから文字出力までを、受け取る側が**待つ**という動作をしています。それ以上かかる場合、**タイムアウトエラー**(エラーコード：**WAIT_TIMEOUT**）として先へ進むようになっています。タイムアウトしないと、先に進めないのでこのような仕様にしています。
 ### ２、標準エラー出力を分離して出力する。
 ```test2.cpp
-  	sp.SetUseStdErr(true);						// ２
+  	sp.SetUseStdErr(true);									// ２
 ```
 　子プロセスが、標準エラーで出力した物を標準エラーで受け取るか、どうか設定します。
 ### ３、わざとタイムアウトエラーにさせ、エラーコードを取得
 ```test2.cpp
-		if (!(sp >> cout)) {					// ３
+		if (!(sp >> cout)) {									// ３
 			DWORD result = sp.GetLastError();
 			cout << "\n\nError code is " << result << endl;
 			sp.ResetFlag();
@@ -148,7 +146,7 @@ int main() {
 　内部のエラーフラグをリセットします。これをしないと次のメンバー関数が実行できない仕様になっています。
 ### ４、コマンドを送信、その後、返信を受け取る
 ```test2.cpp
-		if (!(sp << "chcp" << endl))			// ４
+		if (!(sp << "chcp" << endl))							// ４
 			return 1;
 		if (!(sp >> str))
 			return 1;
@@ -160,7 +158,7 @@ int main() {
 　そのコマンドは必ず文字を返すことが判っているので、`std::string`で受け取り、表示をします。
 ### ５、std::endlしないで、改行までを送信したらどうなる？
 ```test2.cpp
-		if (!(sp << "chcp" << "\n"))			// ５
+		if (!(sp << "chcp" << "\n"))							// ５
 			return 1;
 		for (; sp.IsReadable();){
 			sp >> cout;
@@ -172,7 +170,7 @@ int main() {
 　子プロセスから出力を読み込めるかどうかを、聞くことが出来ます。
 ### ６、Flushして送信しても、cmd.exeは改行が無いと仕事をしない事を確認
 ```test2.cpp
-		if (!(sp << "chcp"))					// ６
+		if (!(sp << "chcp"))									// ６
 			return 1;
 		if (sp.IsReadable()) {
 			if (!(sp >> cout))
@@ -205,7 +203,7 @@ int main() {
 　読み込めることを確認。`sp >> cout`でコンソールに出力。
 ### ７、std::cinから入力されたデータをダイレクトに子プロセスに流す
 ```test2.cpp
-    	if (!(sp << "chcp " ))					// ７
+    	if (!(sp << "chcp " ))							// ７
 			return 1;
 		cout << "\n\nPlease enter the code page number." << endl;
 		if (!(sp << cin))						
@@ -235,7 +233,7 @@ Please enter the code page number.
 　もしあれば標準エラーに、出力するようにしています。
 ### ８、cmd.exeへ"exit"の送信
 ```test2.cpp
-		if (!(sp << "exit" << endl))			// ８
+		if (!(sp << "exit" << endl))						// ８
 			return 1;
 		for (; sp.IsReadable();) {
 			sp.Await(1000) >> cout;
@@ -251,7 +249,7 @@ Please enter the code page number.
 　`SleepEx`は何か送られてこないか待ちます。送られてくれば0.1秒待たずに待ちを終了します。タイムアウトしてもエラー記録を残しません。
 ### ９、子プロセスのクリーンナップを待つ
 ```test2.cpp
-     if (!(sp.WaitForTermination(INFINITE)))	// ９
+     if (!(sp.WaitForTermination(INFINITE)))			    // ９
 			return 1;
 ```
 #### sp.WaitForTermination(INFINITE)
@@ -262,28 +260,32 @@ Please enter the code page number.
 となっていますので、DLLを使う場合には扱いに注意が必要そうです。
 ### １０、終了コードを取得する
 ```test2.cpp
-		DWORD dw = sp.GetExitCodeSubProcess();	// １０
+		DWORD dw = sp.GetExitCodeSubProcess();				// １０
 		cout << "\nExit code is " << dw << endl;
 ```
 #### sp.GetExitCodeSubProcess()
 　子プロセスの終了コードを取得します。その結果で次のアクションへの分岐も出来ます。
 ### １１、子プロセスの操作ハンドルの使用を終了させる
 ```test2.cpp
-		sp.Pclose();						// １１
+		sp.Pclose();										// １１
 ```
 #### sp.Pclose()
 子プロセスを操作できるハンドルを終了させます。この後、新たに子プロセスを起動させる事が出来ます。
 ## 以上、デモコードの解説終了
 　cmd.exeの挙動に沿った解説でした。違う子プロセスを扱うには、**事前に子プロセスの挙動を理解している必要**があります。プログラムによっては、起動直後、何のメッセージを返さないプログラムもあります。
-> **注意：**
->　SubProcessの子プロセスとして動作する`cmd.exe`は、**通常のコマンドプロンプトで実行できる全てのコマンドが、実行できるわけではありません。**
->コンソールアプリは、**`conhost.exe`というプログラムにホストされて、Windows上にコンソールウィンドウを表示して、実行しています。** コンソールアプリは、コンソールウィンドウを表示するコードを持っていない為、このような仕様になっています。おそらくこの為に、全てのコマンドが実行できないものと思われます。Windowsには、**擬似コンソール**という**ユーザープログラムが、`conhost.exe`の代わりを担う仕組み** が用意されています。この仕組みを使うと子プロセスの`cmd.exe`は、フルに機能を発揮出来ます。
+
+:::note info
+　SubProcessの子プロセスとして動作する`cmd.exe`は、**通常のコマンドプロンプトで実行できる全てのコマンドが、実行できるわけではありません。**
+　コンソールアプリは、**`conhost.exe`というプログラムにホストされて、Windows上にコンソールウィンドウを表示して、実行しています。** コンソールアプリは、コンソールウィンドウを表示するコードを持っていない為、このような仕様になっています。おそらくこの為に、全てのコマンドが実行できないものと思われます。Windowsには、**擬似コンソール**という**ユーザープログラムが、`conhost.exe`の代わりを担う仕組み** が用意されています。この仕組みを使うと子プロセスの`cmd.exe`は、フルに機能を発揮出来ます。
+:::
+ 
 ## SubProcessリファレンス
 　ここからはSubProcessクラスの解説です。
 
-> **注意：**
->　SubProcessクラスは、改良を加える事があります。また、機能向上の為、追加のメンバーが加えられる可能性もあります。
-
+:::note info
+　SubProcessクラスは、機能向上の為、改良を加える事があります。また、追加のメンバーが加えられる可能性もあります。
+:::
+ 
 ### SubProcess()noexcept
 #### 説明
 　コンストラクタ。
@@ -321,16 +323,16 @@ Please enter the code page number.
 　成功したら`true`、それ以外は`false`。
 ### DWORD GetExitCodeSubProcess()
 #### 説明
- 子プロセスの終了コードを返します。子プロセスが終了する前にこの関数が呼ばれて成功した場合、`STILL_ACTIVE`が返されます。失敗した場合は、０を返します。`DWORD GetLastError()`でエラーコードを取得できます。子プロセスが終了した後、この関数が呼ばれて成功した場合、終了コードが返されます。`STILL_ACTIVE`はminwinbase.hで定義されています。
+　子プロセスの終了コードを返します。子プロセスが終了する前にこの関数が呼ばれて成功した場合、`STILL_ACTIVE`が返されます。失敗した場合は、０を返します。`DWORD GetLastError()`でエラーコードを取得できます。子プロセスが終了した後、この関数が呼ばれて成功した場合、終了コードが返されます。`STILL_ACTIVE`はminwinbase.hで定義されています。
 #### 戻り値
 　子プロセスの終了コード。
 ### bool TerminateProcess(DWORD dw)
 #### 説明
 　子プロセスとそのすべてのスレッドを終了します。
 
-> **注意：**
+:::note info
 　TerminateProcess 関数は、プロセスを無条件に、終了させるために使用されます。 ExitProcess ではなく TerminateProcess を使用すると、ダイナミック リンク ライブラリ (DLL) によって保持されるグローバル データの状態が、損なわれる可能性があります。
-
+:::
 #### 引数
 ##### DWORD dw
 　この呼び出しの結果として終了した子プロセスによって使用される終了コードを指定します。 終了コードは、`GetExitCodeSubProcess` 関数を使用して、取得出来ます。
@@ -343,7 +345,7 @@ Please enter the code page number.
 ##### DWORD time
 　待つ許容できる時間を、ミリ秒単位で設定します。
 #### 戻り値
-　関数が成功したら`true`、それ以外は`false`。
+　関数が成功したら`true`、それ以外は`false`。`GetLastError()`でエラーコードを取得できます。`WAIT_TIMEOUT`か`WAIT_FAILED`が取得できます。詳細なエラー情報を得る事は出来ません。
 ### DWORD GetLastError()const noexcept
 #### 説明
 　最後のエラーコードを取得します。
@@ -459,6 +461,15 @@ Please enter the code page number.
 ### SubProcess &CErr()
 #### 説明
 　次のストリームへの出力オペレーションの、出力バッファをstd::cerr用のバッファに切り替えます。この、設定は保持されませんので、１回ごとに指定しなければなりません。
+#### 戻り値
+　SubProcessオブジェクト。
+### SubProcess &Raw()noexcept
+#### 説明
+　次の、入力ストリームオペレーションは、RAWデータとして扱い、その後、Flush相当のオペレーションを自動で行います。通常、`"Hello\n World"`の様なstringの途中に改行文字を入れると、`"Hello\n"`で一旦書き込みをします。`" World"`の部分はバッファに残り、書き込みをしません。Raw()は流し込まれたデータをバイナリデータとして扱い、`"Hello\n World"`をそのまま書き込みます。
+
+:::note info
+　データサイズが内部バッファより大きい場合、データの先頭から、内部バッファのサイズまでを、データの塊として切り出します。それを一旦書き込みをして、また、切り出し・書き込みを順次行っていきます。
+:::
 #### 戻り値
 　SubProcessオブジェクト。
 # 終わりに
