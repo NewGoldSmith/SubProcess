@@ -16,7 +16,7 @@ https://qiita.com/GoldSmith/items/1de197c10c05c054461a
 ## SubProcessクラスの使い方のデモコード
 ### この記事で使うソースコードへのリンク
 [GitHubへのリンクはここです。Visual Studio 2022用に設定されたslnファイルもあります。](https://github.com/NewGoldSmith/SubProcess "https://github.com/NewGoldSmith/SubProcess")
-　SubProcessプロジェクトをスタートアッププロジェクトに設定し、`F5`を押下すると実行できます。
+　TestProjectをスタートアッププロジェクトに設定し、ソリューションエクスプローラーから**test2.cpp**を選択し、プロパティの設定で**全般->ビルドから除外**項目を**いいえ**に設定し、**test2.cpp以外**は**はい**に設定し、ターゲットCPUをx64に設定し、`F5`を押下すると実行できます。
 　ソースコードの中にはデバッグ用のライブラリも含んでいます。本質ではない為、今回は説明を割愛いたします。
 
 :::note info
@@ -25,94 +25,94 @@ https://qiita.com/GoldSmith/items/1de197c10c05c054461a
  
 ### デモコード
  　下記にデモコードを記載します。その後、番号のコメントが付けられているところの、解説を順次していきます。
- ``` test2.cpp
+```test2.cpp
 // test2.cpp
 #include <crtdbg.h>
-#include "./SubProcess.h"
+#include "test2.h"
 using namespace std;
 
 int main() {
-	{
-		string str;												// １
-		SubProcess sp;
-		if (!sp.Popen(R"(cmd.exe)"))
-			return 1;
-		if (!(sp.Await(3000) >> cout))
-			return 1;
+   {
+      string str;										// １
+      SubProcess sp;
+      if (!sp.Popen(R"(cmd.exe)"))
+         return 1;
+      if (!(sp.Await(3000) >> cout))
+         return 1;
 
-		sp.SetUseStdErr(true);									// ２
+      sp.SetUseStdErr(true);						// ２
 
-		if (!(sp >> cout)) {									// ３
-			DWORD result = sp.GetLastError();
-			cout << "\n\nError code is " << result << endl;
-			sp.ResetFlag();
-		}
+      if (!(sp >> cout)) {							// ３
+         DWORD result = sp.GetLastError();
+         cout << "\n\nError code is " << result << endl;
+         sp.ResetFlag();
+      }
 
-		if (!(sp << "chcp" << endl))							// ４
-			return 1;
-		if (!(sp >> str))
-			return 1;
-		cout << str;
+      if (!(sp << "chcp" << endl))				// ４
+         return 1;
+      if (!(sp >> str))
+         return 1;
+      cout << str;
 
-		if (!(sp << "chcp" << "\n"))							// ５
-			return 1;
-		for (; sp.IsReadable();){
-			sp >> cout;
-		}
-		
-		if (!(sp << "chcp"))									// ６
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
-		if (!sp.Flush())
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
-		if (!(sp << endl))
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
+      if (!(sp << "chcp" << "\n"))				// ５
+         return 1;
+      for (; sp.IsReadable();) {
+         sp >> cout;
+      }
 
-    		if (!(sp << "chcp " ))							// ７
-			return 1;
-		cout << "\n\nPlease enter the code page number." << endl;
-		if (!(sp << cin))						
-			return 1;
-		if (!(sp >> cout))
-			return 1;
-		if (sp.CErr().IsReadable()) {
-			if (!(sp.CErr() >> cerr))
-				return 1;
-		}
+      if (!(sp << "chcp"))							// ６
+         return 1;
+      if (sp.IsReadable()) {
+         if (!(sp >> cout))
+            return 1;
+      }
+      if (!sp.Flush())
+         return 1;
+      if (sp.IsReadable()) {
+         if (!(sp >> cout))
+            return 1;
+      }
+      if (!(sp << endl))
+         return 1;
+      if (sp.IsReadable()) {
+         if (!(sp >> cout))
+            return 1;
+      }
 
-		if (!(sp << "exit" << endl))						// ８
-			return 1;
-		for (; sp.IsReadable();) {
-			sp.Await(1000) >> cout;
-			if (!sp.SleepEx(100))
-				return 1;
-		}
+      if (!(sp << "chcp "))						// ７
+         return 1;
+      cout << "\n\nPlease enter the code page number." << endl;
+      if (!(sp << cin))
+         return 1;
+      if (!(sp >> cout))
+         return 1;
+      if (sp.CErr().IsReadable()) {
+         if (!(sp.CErr() >> cerr))
+            return 1;
+      }
 
-     if (!(sp.WaitForTermination(INFINITE)))			    // ９
-			return 1;
+      if (!(sp << "exit" << endl))				// ８
+         return 1;
+      for (; sp.IsReadable();) {
+         sp.Await(1000) >> cout;
+         if (!sp.SleepEx(100))
+            return 1;
+      }
 
-		DWORD dw = sp.GetExitCodeSubProcess();				// １０
-		cout << "\nExit code is " << dw << endl;
+      if (!(sp.WaitForTermination(INFINITE)))// ９
+         return 1;
 
-		sp.Pclose();										// １１
+      DWORD dw = sp.GetExitCodeSubProcess();	// １０
+      cout << "\nExit code is " << dw << endl;
 
-		cout << "\nThe SubProcess demo has successfully concluded." << endl;
-	}
-	_CrtDumpMemoryLeaks();
+      sp.Pclose();									// １１
+
+      cout << "\nThe SubProcess demo has successfully concluded." << endl;
+   }
+   _CrtDumpMemoryLeaks();
 }
- ```
- ### １、`cmd.exe`を子プロセスとして起動
+```
+### １、`cmd.exe`を子プロセスとして起動
  ```test2.cpp
 		string str;												// １
 		SubProcess sp;
@@ -461,6 +461,15 @@ Please enter the code page number.
 ### SubProcess &CErr()
 #### 説明
 　次のストリームへの出力オペレーションの、出力バッファをstd::cerr用のバッファに切り替えます。この、設定は保持されませんので、１回ごとに指定しなければなりません。
+#### 戻り値
+　SubProcessオブジェクト。
+### SubProcess &Raw()noexcept
+#### 説明
+　次の、入力ストリームオペレーションは、RAWデータとして扱い、その後、Flush相当のオペレーションを自動で行います。通常、`"Hello\n World"`の様なstringの途中に改行文字を入れると、`"Hello\n"`で一旦書き込みをします。`" World"`の部分はバッファに残り、書き込みをしません。Raw()は流し込まれたデータをバイナリデータとして扱い、`"Hello\n World"`をそのまま書き込みます。
+
+:::note info
+　データサイズが内部バッファより大きい場合、データの先頭から、内部バッファのサイズまでを、データの塊として切り出します。それを一旦書き込みをして、また、切り出し・書き込みを順次行っていきます。
+:::
 #### 戻り値
 　SubProcessオブジェクト。
 # 終わりに

@@ -28,14 +28,14 @@ SubProcess::SubProcess()noexcept:
 			return;
 		}
 
-		if (pOL->__ol.hEvent) {
+		if (pOL->ol.hEvent) {
 			if (pOL->self->__bfIsUseStdErr)
-				pOL->self->__FromChildBufErr.write(pOL->__buffer, bytesTransfered);
+				pOL->self->__FromChildBufErr.write(pOL->buffer, bytesTransfered);
 			else
-				pOL->self->__FromChildBuf.write(pOL->__buffer, bytesTransfered);
+				pOL->self->__FromChildBuf.write(pOL->buffer, bytesTransfered);
 			pOL->self->__ReadFromCliErr();
 		} else {
-			pOL->self->__FromChildBuf.write(pOL->__buffer, bytesTransfered);
+			pOL->self->__FromChildBuf.write(pOL->buffer, bytesTransfered);
 			pOL->self->__ReadFromCli();
 		}
 	} }
@@ -208,7 +208,7 @@ bool SubProcess::Popen(const std::string &strCommand) {
 							 TRUE,          // handles are inherited 
 							 PROCESS_QUERY_INFORMATION,             // creation flags 
 							 NULL,          // use parent's environment 
-							 (wstrPath.empty() ? NULL : wstrPath.c_str()),//Exepath.parent_path().wstring().c_str(), // use parent's current directory 
+							 (wstrPath.empty() ? NULL : wstrPath.c_str()),// use parent's current directory 
 							 &siStartInfo,  // STARTUPINFO pointer 
 							 &__PI))  // receives PROCESS_INFORMATION
 	{
@@ -354,6 +354,9 @@ SubProcess &SubProcess::operator<<(std::ostream &(*const manipulator)(std::ostre
 
 
 bool SubProcess::__FlushWrite() {
+	if (__numErr)
+		return false;
+
 	if (__ToChildBuf.str().size()) {
 		if (!__WriteToCli(__ToChildBuf.str())) {
 			return false;
@@ -383,7 +386,6 @@ SubProcess &SubProcess::Flush() {
 	if (__numErr)
 		return *this;
 	__FlushWrite();
-	//__FlushRead();
 	return *this;
 }
 
@@ -474,9 +476,6 @@ bool SubProcess::IsActive(){
 }
 
 bool SubProcess::IsReadable(){
-	if (__numErr)
-		return false;
-
 	::SleepEx(__numContinuousTimeOut, TRUE);
 	if (__bfIsErrOut) {
 		__bfIsErrOut = false;
@@ -524,7 +523,9 @@ std::string SubProcess::__GetParentPathA() {
 	std::string str(MAX_PATH,'\0');
 	DWORD dw;
 	if (!(dw = ::GetCurrentDirectoryA(MAX_PATH, str.data()))) {
-		debug_fnc::EOut;
+		DWORD dw2 = ::GetLastError();
+		__numErr = dw2;
+		debug_fnc::ENOut(dw2);
 		return std::string("");
 	}
 	str.resize(dw);
@@ -537,8 +538,8 @@ bool SubProcess::__ReadFromCli() {
 	DWORD dw;
 	if (!::ReadFileEx(
 		__hSevR
-		, &(pOL->__buffer)
-		, sizeof(OVERLAPPED_CUSTOM::__buffer)
+		, &(pOL->buffer)
+		, sizeof(OVERLAPPED_CUSTOM::buffer)
 		, (::OVERLAPPED *)pOL
 		, __pfReadFromChildCompleted)) {
 		dw = ::GetLastError();
@@ -554,14 +555,14 @@ bool SubProcess::__ReadFromCli() {
 }
 
 bool SubProcess::__ReadFromCliErr() {
-	OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = { .__ol{.hEvent = __hErrW} });
+	OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = { .ol{.hEvent = __hErrW} });
 
 	pOL->self = this;
 	DWORD dw;
 	if (!::ReadFileEx(
 		__hErrR
-		, &(pOL->__buffer)
-		, sizeof(OVERLAPPED_CUSTOM::__buffer)
+		, &(pOL->buffer)
+		, sizeof(OVERLAPPED_CUSTOM::buffer)
 		, (OVERLAPPED *)pOL
 		, __pfReadFromChildCompleted)) {
 		dw = ::GetLastError();
@@ -680,12 +681,12 @@ bool SubProcess::__WriteToCli(const std::string &str) {
 		pos += len;
 
 		OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = {});
-		std::copy(chunk.begin(), chunk.end(), pOL->__buffer);
+		std::copy(chunk.begin(), chunk.end(), pOL->buffer);
 		pOL->self = this;
 		DWORD dw;
 		if (!::WriteFileEx(
 			__hSevW
-			, &(pOL->__buffer)
+			, &(pOL->buffer)
 			, (DWORD)chunk.size()
 			, (::OVERLAPPED *)pOL
 			, __pfWriteToChildCompleted)) {
@@ -705,6 +706,8 @@ bool SubProcess::__WriteToCli(const std::string &str) {
 }
 
 std::ostream &operator<<(std::ostream &os, SubProcess &sp) {
+	if (sp.__numErr)
+		return os;
 	std::string str;
 	sp >> str;
 	os << str;

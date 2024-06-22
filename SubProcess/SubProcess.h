@@ -72,9 +72,9 @@ private:
 	std::string __GetParentPathA();
 	std::wstring __CreateNamedPipeStringW();
 	struct OVERLAPPED_CUSTOM {
-		::OVERLAPPED __ol{};
+		::OVERLAPPED ol{};
 		SubProcess *self{};
-		char __buffer[BUFFER_SIZE]{};
+		char buffer[BUFFER_SIZE]{};
 	};
 
 	OVERLAPPED_CUSTOM __OLArr[NUM_OVERLAPPED];
