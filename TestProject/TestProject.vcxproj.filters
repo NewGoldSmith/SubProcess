@@ -35,7 +35,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="RemoteCmd.bat" />
-    <None Include="Zenn-SubProcess.md" />
     <None Include="Zennssh接続.md" />
+    <None Include="ssh接続.md" />
   </ItemGroup>
 </Project>
