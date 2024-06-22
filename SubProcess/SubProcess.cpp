@@ -517,19 +517,6 @@ inline std::wstring SubProcess::__AtoW(const std::string &str)const{
 	return wstr;
 }
 
-std::string SubProcess::__GetParentPathA() {
-	std::string str(MAX_PATH,'\0');
-	DWORD dw;
-	if (!(dw = ::GetCurrentDirectoryA(MAX_PATH, str.data()))) {
-		DWORD dw2 = ::GetLastError();
-		__numErr = dw2;
-		debug_fnc::ENOut(dw2);
-		return std::string("");
-	}
-	str.resize(dw);
-	return str;
-}
-
 bool SubProcess::__ReadFromCli() {
 	OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = {});
 	pOL->self = this;

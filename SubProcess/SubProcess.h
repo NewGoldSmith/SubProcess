@@ -69,7 +69,6 @@ private:
 	bool __ReadFromCliErr();
 	bool __StrongReadFromCli(DWORD timeout= DEFAULT_TIMEOUT);
 	std::wstring __AtoW(const std::string &str)const;
-	std::string __GetParentPathA();
 	std::wstring __CreateNamedPipeStringW();
 	struct OVERLAPPED_CUSTOM {
 		::OVERLAPPED ol{};
