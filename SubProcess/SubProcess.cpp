@@ -16,8 +16,7 @@ SubProcess::SubProcess()noexcept:
 		, OVERLAPPED *overlapped) {
 
 		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM *)> pOL = {
-			[&overlapped]() {OVERLAPPED_CUSTOM *p =
-			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped);	return p; }()
+			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped)
 			, [](OVERLAPPED_CUSTOM *p)->void {p->self->__mlOL.Return(p); } };
 
 		if (errorCode != ERROR_SUCCESS) {
@@ -46,8 +45,7 @@ SubProcess::SubProcess()noexcept:
 		, OVERLAPPED *overlapped) {
 
 		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM *)> pOL = {
-			[&overlapped]() {OVERLAPPED_CUSTOM *p =
-			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped);	return p; }()
+			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped)
 			, [](OVERLAPPED_CUSTOM *p)->void {p->self->__mlOL.Return(p); } };
 
 		if (errorCode != ERROR_SUCCESS) {
