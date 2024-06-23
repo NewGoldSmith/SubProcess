@@ -13,47 +13,123 @@
 　ですので、ユニットアドレスが供給元の配列の端でない場合、前後のアドレスにもアクセス出来ますし、アドレスを返却した後にもアクセス出来ますので、使用者が規律を持って運用する必要があります。
 ## テンプレートstd::コンテナクラスでもメモリープールは作れる？
 　はい、作れます。むしろ、こちらの方がいいかもしれません。カスタムアロケーターを作れば、メモリーをスレッドローカルで確保するのか、プロセスローカルで確保するのか、メモリー戦略の幅が広がります。ただ、マルチスレッドで使う場合、ロックする機構が必要になるでしょうから、そういうのを内包したクラスを作る事になるでしょう。メモリープールを作り始めた頃は、stdライブラリの使用に不慣れだったこともあり、採用はしませんでした。
-## 実際のソースコードの紹介
-[ソースコードはここです。](https://github.com/NewGoldSmith/Memory-Pool/tree/main "https://github.com/NewGoldSmith/Memory-Pool/tree/main")
-メモリープール動作デモmain関数を作りました。
-### 使い方　デモコード
+## MemoryLoanテンプレートクラスの使い方のデモコード
+### この記事で使うソースコードへのリンク
+[GitHubへのリンクはここです。Visual Studio 2022用に設定されたslnファイルもあります。](https://github.com/NewGoldSmith/SubProcess "https://github.com/NewGoldSmith/SubProcess")
+　TestProjectをスタートアッププロジェクトに設定し、ソリューションエクスプローラーから**test.cpp**を選択し、プロパティの設定で**全般->ビルドから除外**項目を**いいえ**に設定し、**test.cpp以外**は**はい**に設定し、ターゲットCPUをx64に設定し、`F5`を押下すると実行できます。
+ ![MemoryLoan.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3813628/0459d4fe-b2eb-c5ba-4ab4-07ba182a95a9.png)
+
+　ソースコードの中にはデバッグ用のライブラリも含んでいます。本質ではない為、今回は説明を割愛いたします。
+
+:::note info
+ 　この記事で紹介しているソースコードは、公開した時点から変更を加えている事があります。そのため、元の記事とは異なる結果を得る場合があります。また、ソースコードを機能別にディレクトリを分ける等の、改善を行う可能性があります。
+:::
+ 
+### デモコード
+ 　下記にデモコードを記載します。その後、番号のコメントが付けられているところの、解説を順次行います。
 ```test.cpp
 // test.cpp
 #include <iostream>
-#include "MemoryLoan.h"
+#include "../CommonLib/MemoryLoan.h"
 
 using namespace std;
 
 int main() {
 	{
-		int iArr[1]{};
-		MemoryLoan<int> mp(iArr, sizeof(iArr) / sizeof(iArr[0]));
-		mp.DebugString("test1");
-		int *pi1 = mp.Lend();
-		*pi1 = 100;
-		cout << *pi1 << endl;
-		mp.Return(pi1);
-		int *pi2 = mp.Lend();
-		*pi2 = 200;
-		cout << *pi2 << endl;
-		mp.Return(pi2);
-		int iArr2[2]{};
-		mp.ReInitialized(iArr2, sizeof(iArr2) / sizeof(iArr2[0]));
-		mp.DebugString("test2");
-		pi1 = mp.Lend();
-		pi2 = mp.Lend();
-		*pi1 = 250;
-		*pi2 = *pi1 + 50;
-		cout << *pi1 << endl << *pi2 << endl;
-		mp.Return(pi1);
-		mp.Return(pi2);
+		int iArr[1]{};//1
+		MemoryLoan<int> mp(iArr, sizeof(iArr) / sizeof(iArr[0]));//2
+		mp.DebugString("test1");//3
+		int *pi1 = mp.Lend();//4
+		*pi1 = 100;//5
+		cout << *pi1 << endl;//6
+		mp.Return(pi1);//7
+		int *pi2 = mp.Lend();//8
+		*pi2 = 200;//9
+		cout << *pi2 << endl;//10
+		mp.Return(pi2);//11
+		int iArr2[2]{};//12
+		mp.ReInitialized(iArr2, sizeof(iArr2) / sizeof(iArr2[0]));//13
+		mp.DebugString("test2");//14
+		pi1 = mp.Lend();//15
+		pi2 = mp.Lend();//16
+		*pi1 = 250;//17
+		*pi2 = *pi1 + 50;//18
+		cout << *pi1 << endl << *pi2 << endl;//19
+		mp.Return(pi1);//20
+		mp.Return(pi2);//21
 	}
 	_CrtDumpMemoryLeaks();
 }
 ```
-### MemoryLoan.hテンプレートクラスの解説
-##### 冒頭での条件指定
-冒頭で条件指定出来るようにしています。必要に応じて`#define`をコメントアウト、アンコメントして下さい。
+#### デモコードの解説
+##### １、メモリープールに使うメモリー領域を確保する
+```test.cpp
+		int iArr[1]{};//1
+```
+　このメモリープールテンプレートクラスは使用するメモリーを確保する機能が搭載されていません。この辺りはstdライブラリとは相容れない仕様です。１ユニット確保しています。このメモリープールは、`int`等のプリミティブな型だけでなく、クラスの配列等も取り扱う事ができます。
+##### ２、コンストラクタでメモリープールオブジェクトを構築する
+```test.cpp
+		MemoryLoan<int> mp(iArr, sizeof(iArr) / sizeof(iArr[0]));//2
+```
+　コンストラクタはデフォルトコンストラクタを禁止にしています。代わりに`MemoryLoan(T *const pBufIn, size_t sizeIn)`を使います。`pBufIn`は配列のアドレス、`sizeIn`はその配列の要素数となっています。
+##### ３、デバッグ文字列をセットする
+```test.cpp
+		mp.DebugString("test1");//3
+```
+　これは任意の設定です。これを設定しておくと、デストラクタが呼ばれた時に、デバッグ出力に設定した文字列が表示されます。複数のメモリープールオブジェクトを使っている時に、どのオブジェクトのデストラクタが呼ばれたのか、識別できるようにしています。
+　また、何らかの例外が発生したときも、デバッグ出力にこの文字列を表示するようになっています。
+##### ４、貸し出しをする
+```test.cpp
+int *pi1 = mp.Lend();//4
+```
+　配列の要素のアドレスを返します。
+##### ５、６、何らかの作業をする
+```test.cpp
+		*pi1 = 100;//5
+		cout << *pi1 << endl;//6
+```
+　ここでは代入し、コンソールに出力しています。
+##### ７、返却する
+```test.cpp
+		mp.Return(pi1);//7
+```
+　借りていたユニットを返却しています。
+##### ８、９、１０、１１、また借りて作業をして返却する
+```test.cpp
+		int *pi2 = mp.Lend();//8
+		*pi2 = 200;//9
+		cout << *pi2 << endl;//10
+		mp.Return(pi2);//11
+```
+　また借ります。
+##### １２、１３、１４、別のメモリー領域をセットして再初期化する。
+```test.cpp
+		int iArr2[2]{};//12
+		mp.ReInitialized(iArr2, sizeof(iArr2) / sizeof(iArr2[0]));//13
+		mp.DebugString("test2");//14
+```
+　配列のサイズを変えたいので、それを指定して、再初期化します。再初期化するとデバッグ出力に、直前に使用していた統計をデバッグ出力に表示します。
+##### １５～２１、新たな領域で作業をし返却する
+```test.cpp
+		pi1 = mp.Lend();//15
+		pi2 = mp.Lend();//16
+		*pi1 = 250;//17
+		*pi2 = *pi1 + 50;//18
+		cout << *pi1 << endl << *pi2 << endl;//19
+		mp.Return(pi1);//20
+		mp.Return(pi2);//21
+```
+　ユニットサイズを`ReInitialized`で増やしたので、新しい作業も問題なく行えています。
+##### コンソール結果
+```コンソール.結果
+100
+200
+250
+300
+```
+## MemoryLoanテンプレートクラスリファレンス
+### 冒頭での条件指定
+　冒頭で条件指定が、出来るようになっています。必要に応じて`#define`をコメントアウト、アンコメントして下さい。
 ```MemoryLoan.h
 // ********使用条件を設定***********
 #define ML_USING_CRITICAL_SECTION
@@ -62,60 +138,56 @@ int main() {
 #define ML_USING_STD_ERROR
 // ******条件設定終わり*************
 ```
-<dl>
-  <dt>ML_USING_CRITICAL_SECTION</dt>
-  <dd>クリティカルセクションを使用します。複数のスレッドで同時使用する可能性がある場合、この機能を使います。</dd>
-  <dt>ML_CONFIRM_RANGE</dt>
-  <dd>貸出し過多、返却過多になっていないか確認します。なっていた場合、例外を投げます。</dd>
-  <dt>ML_USING_DEBUG_OUT</dt>
-  <dd>デストラクタが呼ばれた時にデバッグ出力に情報を出力します。<br>
-  <blockquote>MemoryLoan is destructing. DebugMessage:"test2" TypeName:"int" BytesPerUnit:4bytes TotalNumberOfLoans:2 TotalNumberOfReturns:2 NumberOfUnreturned:0 NumberOfUnits:2 MaximumNumberOfLoans:2</blockquote>
-  </dd>
-</dl>
-<dl>
-  <dt>DebugMessage:"test2"</dt>
-  <dd>予めデバッグメッセージを<code>DebugString</code>メソッドで文字列を仕組んでおくと、<strong>""</strong>の間にその文字列が表示されます。インスタンスを複数作った場合の識別にも使えます。</dd>
-  <dt>TypeName:"int"</dt>
-  <dd>型名を表示します。</dd>
-  <dt>BytesPerUnit:4bytes</dt>
-  <dd>１ユニット辺りのメモリー使用量を表示します。</dd>
-  <dt>TotalNumberOfLoans:2</dt>
-  <dd>総貸出数を表示します。</dd>
-  <dt>TotalNumberOfReturns:2</dt>
-  <dd>総返却数を表示します。</dd>
-  <dt>NumberOfUnreturned:0</dt>
-  <dd>デストラクタが呼ばれた時の、未返却数を表示します。</dd>
-  <dt>NumberOfUnits:2</dt>
-  <dd>ユニット数を表示します。</dd>
-  <dt>MaximumNumberOfLoans:2</dt>
-  <dd>ピークの最大貸出し数を表示します。</dd>
-</dl>
-<dl>
-  <dt>ML_USING_STD_ERROR</dt>
-  <dd>エラー出力をcerrに出力します。</dd>
-</dl>
+#### ML_USING_CRITICAL_SECTION
+　クリティカルセクションを使用します。複数のスレッドで同時使用する可能性がある場合、この機能を使います。
+#### ML_CONFIRM_RANGE
+　貸出し過多、返却過多になっていないか確認します。なっていた場合、例外を投げます。
+#### ML_USING_DEBUG_OUT
+　デストラクタが呼ばれた時に、デバッグ出力に情報を出力します。
+>MemoryLoan is destructing. DebugMessage:"test2" TypeName:"int" BytesPerUnit:4bytes TotalNumberOfLoans:2 TotalNumberOfReturns:2 NumberOfUnreturned:0 NumberOfUnits:2 MaximumNumberOfLoans:2
 
-#### 複数の条件で複数のインスタンスを使用したい場合どうするの？
+の様にデバッグ出力されます。それぞれの内容の意味は次のようになります。
+##### DebugMessage:"test2"
+　予めデバッグメッセージを`DebugString`メソッドで文字列を仕組んでおくと、**""**の間にその文字列が表示されます。インスタンスを複数作った場合の識別にも使えます。
+##### TypeName:"int"
+　型名を表示します。
+##### BytesPerUnit:4bytes
+　１ユニット辺りのメモリー使用量を表示します。
+##### TotalNumberOfLoans:2
+　総貸出数を表示します。
+##### TotalNumberOfReturns:2
+　総返却数を表示します。
+##### NumberOfUnreturned:0
+　デストラクタが呼ばれた時の、未返却数を表示します。
+##### NumberOfUnits:2
+　ユニット数を表示します。
+##### MaximumNumberOfLoans:2
+　ピークの最大貸出し数を表示します。
+#### ML_USING_STD_ERROR
+　エラー出力をcerrに出力します。
+
+:::note info
+***複数の条件で複数のインスタンスを使用したい場合どうするの？***
 　MemoryLoan.hをコピーして、違うファイル名にして保存し、クラス名も被らない名前に変更します。これで複数の条件で使用できます。スマートではないですけどいい方法が思いつかないのでこの方法にしています。もちろん条件を変数で持って、切り替える事は出来るでしょうけど、ヘッダを書き換えるだけだからこれでいいかなと思っています。クラス名の変更ですが、Visual Studio 2022（以下VS）ならば、カーソルをクラス名に持って行き、キーボードショートカット`Ctrl + r, r`で変更できます。MemoryLoan.hの末尾に
-
 ```MemoryLoan.h
 #undef ML_USING_CRITICAL_SECTION
 #undef ML_CONFIRM_RANGE
 #undef ML_USING_DEBUG_OUT
 #undef ML_USING_STD_ERROR
 ```
-
 の様に、#defineを#undefしていますので、各ファイルごとに違う設定が可能です。
-#### メンバー関数及び、コード解説
+:::
+### メンバー関数及び、コード解説
 ここからはメンバー関数及び、コード解説です。クラス名は**MemoryLoan**です。
 
-##### コンストラクタ
-`MemoryLoan(T *const pBufIn, size_t sizeIn)`
-<dl>
-  <dt>pBufIn</dt>
-  <dd>　配列のアドレス。</dd>
-  <dt>sizeIn</dt>
-  <dd>　配列の要素数。</dd>
+#### MemoryLoan(T *const pBufIn, size_t sizeIn)
+##### 説明
+　コンストラクタ
+##### 引数
+###### pBufIn
+  　配列のアドレス。
+###### sizeIn
+　配列の要素数。
 
 ```MemoryLoan.h
 	MemoryLoan(T *const pBufIn, size_t sizeIn)
@@ -133,16 +205,23 @@ int main() {
 
 ```
 　原理部分だけを抜き出したコードです。配列の各要素のアドレスを格納する配列を`new`で確保し、`ppBuf`に格納しています。スレッドローカルにするならばこの辺の改善も出来ます。メンバーは配列アドレスを格納する`ppBuf`、リングバッファの先頭を記録する`front`、末尾を記録する`end`、アドレスをマスクして同じアドレスをグルグル回る様にする為の、`mask`を初期化しています。`mask`は`配列の要素数-1`ですので、配列の要素数を知りたいときにも使います。**要素数が2のべき乗でない場合、発見困難なバグに遭遇する可能性**がありますので十分注意が必要です。
-#### デストラクタ
-`~MemoryLoan()`
+#### ~MemoryLoan()
+##### 説明
+デストラクタ。
 ```MemoryLoan.h
 	~MemoryLoan() {
 		delete[] ppBuf;
 	}
 ```
 　`ppBuf`を`delete`しています。
- #### 再初期化
- `void ReInitialized(T *pBufIn, size_t sizeIn)`
+#### void ReInitialized(T *pBufIn, size_t sizeIn)
+##### 説明
+　再初期化をします。
+##### 引数
+###### T *pBufIn
+　T型の配列のアドレス。
+###### size_t sizeIn
+　配列のユニット数。
  ```MemoryLoan.h
  	// @attention sizeInは2のべき乗でなくてはなりません。
 	void ReInitialized(T *pBufIn, size_t sizeIn) {
@@ -157,8 +236,12 @@ int main() {
 	}
 ```
 　まず、再初期化する事は無いと思われますが、`コピーコンストラクタ`、`moveコンストラクタ`が使えないので、それの代わりになる物を用意しました。実装しようと思えばできそうですが、今の所、必要ないので実装していません。当然`std::vecotr`等の要素には使えません。
-#### 貸出し
-`T *Lend()`
+#### T *Lend()
+##### 説明
+　貸出しをします。
+##### 戻り値
+###### T *
+　T型のユニットのポインタを返します。
 ```MemoryLoan.h
 	inline T *Lend() {
 		T **ppT = &ppBuf[end & mask];
@@ -167,8 +250,12 @@ int main() {
 	}
 ```
 　貸出しをして、`end`をインクリメントしています。複数の連続した要素を扱う事は出来ません。
- #### 返却
- `void Return(T *const pT)`
+#### void Return(T *const pT)
+##### 説明
+　返却を受け付けます。
+##### 引数
+###### T *const pT
+　T型の返却するポインタ。
  ```MemoryLoan.h
 	inline void Return(T *const pT) {
 		ppBuf[front & mask] = pT;
@@ -176,15 +263,25 @@ int main() {
 	}
 ```
 　返却をして`front`をインクリメントしています。
- #### デバッグ用文字設定
- `void DebugString(const std::string &str)`
+#### void DebugString(const std::string &str)
+##### 説明
+　デバッグ用の文字列を設定します。
+##### 引数
+###### const std::string &str
+　設定する文字列。
   ```MemoryLoan.h
 	void DebugString(const std::string &str) {
 		strDebug = str;
 	}
 ```
-　デストラクタが呼ばれた時、デバッグ出力に文字列を出力します。どのオブジェクトのデストラクタが呼ばれたか、判る様にする事が出来ます。
- # 終わりに
+　デストラクタが呼ばれた時、デバッグ出力に文字列を出力します。どのオブジェクトのデストラクタが呼ばれたか、識別可能にする事が出来ます。
+## 以上、リファレンス終わり
+
+::: note
+　SubProcessクラスは、機能向上の為、改良を加える事があります。また、追加のメンバーが加えられる可能性もあります。
+:::
+ 
+# 終わりに
 　「[C++]超高速テンプレートメモリープールコンテナの実装」の解説は以上となります。この記事が皆様の閃きや発想のきっかけになりましたら幸いです。
  　また、ご意見、ご感想、ご質問など、お待ちしております。
 
