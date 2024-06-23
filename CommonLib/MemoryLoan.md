@@ -180,10 +180,12 @@ int *pi1 = mp.Lend();//4
 ### メンバー関数及び、コード解説
 ここからはメンバー関数及び、コード解説です。クラス名は**MemoryLoan**です。
 
-#### MemoryLoan(T *const pBufIn, size_t sizeIn)
+#### MemoryLoan< typename T >(T *const pBufIn, size_t sizeIn)
 ##### 説明
 　コンストラクタ
 ##### 引数
+###### typename T
+　配列の型。
 ###### pBufIn
   　配列のアドレス。
 ###### sizeIn
