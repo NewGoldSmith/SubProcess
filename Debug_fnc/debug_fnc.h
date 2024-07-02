@@ -34,9 +34,10 @@ namespace debug_fnc {
 		, LPCSTR lpcszFile
 		, DWORD dwLine
 		, LPCSTR lpcszFunction
-		, const std::string &lpszOpMessage = "");
+		, const std::string& lpszOpMessage = "");
 #define EOut ErrOut_(::GetLastError(),__FILE__,__LINE__,__FUNCTION__)
 #define ENOut(err_num) ErrOut_(err_num,__FILE__,__LINE__,__FUNCTION__)
+#define ENMOut(err_num,mes) ErrOut_(err_num,__FILE__,__LINE__,__FUNCTION__,mes)
 #define _MES(s) {::OutputDebugStringA((std::string(__FILE__ "(" STRINGIZE(__LINE__) "):")+std::string(s)+"\r\n").c_str());}
 #ifdef _DEBUG
 #define _D(s) {::OutputDebugStringA((std::string(__FILE__ "(" STRINGIZE(__LINE__) "):")+std::string(s)+"\r\n").c_str());}
