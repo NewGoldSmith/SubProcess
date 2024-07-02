@@ -67,7 +67,7 @@ int main() {
 }
 ```
 ### 実行結果
-```コンソール.txt
+```コンソール.
 Sev:called __ReadFromCli                        0.000 msec //  5
 Sev:called __WriteToCli "Hello, World!"         0.010 msec //  6
 Sev:WriteToCliCompleted. "Hello, World!"        0.479 msec //  7
@@ -166,8 +166,8 @@ int main() {
 }
 ```
 　「*5」の所、`Sleep(1000);`を加えます。
-#### sampleIOCP.h
-```sampleIOCP.h
+#### ../CommonLib/sampleIOCP.h
+```../CommonLib/sampleIOCP.h
 class  sampleIOCP {
 	static constexpr DWORD BUFFER_SIZE_OL = 0x4;
 	static constexpr DWORD BUFFER_SIZE_CL_SIDE = 0x400;
@@ -175,7 +175,7 @@ class  sampleIOCP {
 ```
 　`BUFFER_SIZE_OL = 0x10`の所を、`BUFFER_SIZE_OL = 0x4`に変更します。
 ### 実行してみる
-```
+```コンソール.
 Sev:called __ReadFromCli                        0.000 msec
 Sev:called __WriteToCli "Hell"                  0.010 msec
 Sev:WriteToCliCompleted. "Hell"                 0.781 msec
@@ -207,15 +207,15 @@ Main:"Hello, World!"                            0.580 msec
 **３：** `Sev:Call SleepEx`が表示されるまで、**１秒強**経過しているのが判ります。これはmain.cppの`Sleep(1000);`でメインスレッドがスリープしているのが、原因と考えられます。この、`Sleep(1000);`は、サブスレッドでクライアント側が、**エコー出来る余裕**を与えるつもりで加えました。
 **４：** サーバー側の読み込みも細かく読み込んでいるのが判ります。
 ### 更に書き換えてみる
-#### sampleIOCP.h
-```sampleIOCP.h
+#### ../CommonLib/sampleIOCP.h
+```../CommonLib/sampleIOCP.h
 class  sampleIOCP {
 	static constexpr DWORD BUFFER_SIZE_OL = 0x4;
 	static constexpr DWORD BUFFER_SIZE_CL_SIDE = 0x400;
 	static constexpr DWORD BUFER_SIZE_PIPE = 0x00;
 ```
 　**`BUFER_SIZE_PIPE`** を0にしてみます。これは、パイプを作った時に指定するバッファーサイズです。
-```sampleIOCP.cpp
+```../CommonLib/sampleIOCP.cpp
 ::CreateNamedPipeW(
 			wstr.c_str()
 			, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
@@ -228,7 +228,7 @@ class  sampleIOCP {
 ```
 　このように、サーバー側パイプを作るときに、指定しています。
 ### 実行してみる
-```
+```コンソール.
 Sev:called __ReadFromCli                        0.000 msec
 Sev:called __WriteToCli "Hell"                  0.010 msec
 Sev:called __WriteToCli "o, W"                  0.447 msec
@@ -259,10 +259,10 @@ Main:"Hello, World"                             0.596 msec
 **３、**　ストリームを扱う時は、**上層プロトコルでデータの区切りを判断する**必要がありそうだ。ソケット通信でも当てはまる事だと思われる。
 ## 以上で実験終わり
 ### まとめ
-１、IOCPの知識が曖昧だったので、IOCPの流れが判るプログラムを作った。
-２、パイプのタイプは**PIPE_TYPE_BYTE**を選択。
-３、計測したところ、条件によっては、データ取得タイミング時にデータが、全て揃ってない事があった。**PIPE_TYPE_MESSAGE**であれば、データが来たか来てないかの二択であったと思われる。**PIPE_TYPE_BYTE**は身近な用途ではネットワークに使われている。用途に応じて使い分けが必要だと感じた。**PIPE_TYPE_BYTE**か、**PIPE_TYPE_MESSAGE**の選択は悩ましいが、子プログラムがcmd.exeなら改行が文の終わりとなっているので、**PIPE_TYPE_BYTE**が、向いているのではないかと思われる。
-４、以前作った**SubProcess**のプログラムは、やはり**IOCP**の使い方が洗練されて無かった。できれば修正するのが、望ましい。
+#### １、IOCPの知識が曖昧だったので、IOCPの流れが判るプログラムを作った。
+#### ２、パイプのタイプは**PIPE_TYPE_BYTE**を選択。
+#### ３、計測したところ、条件によっては、データ取得タイミング時にデータが、全て揃ってない事があった。**PIPE_TYPE_MESSAGE**であれば、データが来たか来てないかの二択であったと思われる。**PIPE_TYPE_BYTE**は身近な用途ではネットワークに使われている。用途に応じて使い分けが必要だと感じた。**PIPE_TYPE_BYTE**か、**PIPE_TYPE_MESSAGE**の選択は悩ましいが、子プログラムがcmd.exeなら改行が文の終わりとなっているので、**PIPE_TYPE_BYTE**が、向いているのではないかと思われる。
+#### ４、以前作った**SubProcess**のプログラムは、やはり**IOCP**の使い方が洗練されて無かった。できれば修正するのが、望ましい。
 # 終わりに
 　「**[C++][Windows]IOCPを理解する**」の解説は以上となります。この記事が皆様の閃きや発想のきっかけになりましたら幸いです。
 　また、ご意見、ご感想、ご質問など、お待ちしております。
