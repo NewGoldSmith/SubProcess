@@ -21,8 +21,24 @@
     <ClInclude Include="defSTRINGIZE.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="sampleIOCP.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="OrderedCout.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MemoryLoan.md" />
+    <None Include="ZennMemoryLoan.md" />
+    <None Include="sampleIOCP.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="sampleIOCP.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="OrderedCout.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

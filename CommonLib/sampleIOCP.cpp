@@ -1,6 +1,6 @@
 /**
- * @file sampleOverLapped.h
- * @brief sampleOverLapped作成クラス実装
+ * @file sampleIOCP.cpp
+ * @brief sampleIOCP作成クラス実装
  * SPDX-License-Identifier: MIT<br>
  * @date 2024<br>
  * @author Gold Smith
@@ -10,203 +10,248 @@ using namespace std;
 using namespace debug_fnc;
 sampleIOCP::sampleIOCP():
 
-	pfReadFromChildCompleted{ [](
+	pfReadFromCliCompleted{ [](
 		DWORD errorCode
 		, DWORD bytesTransfered
 		, OVERLAPPED *overlapped) {
 
-		unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM *)> pOL = {
-			[&overlapped]() {OVERLAPPED_CUSTOM *p =
-			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped);	return p; }()
-			, [](OVERLAPPED_CUSTOM *p)->void {p->pThis->mlOL.Return(p); } };
-
-		//pOL->DataSize = bytesTransfered;
+		unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM*)> pOL = {
+			reinterpret_cast<OVERLAPPED_CUSTOM*>(overlapped)
+			, [](OVERLAPPED_CUSTOM* p)->void {p->self->__mlOL.Return(p); }};
 
 		if (errorCode != ERROR_SUCCESS) {
-			ErrOut_(errorCode, __FILE__, __LINE__, __FUNCTION__, "operation failed with error.");
-			pOL->pThis->fIsSucceed = false;
+			debug_fnc::ENOut(errorCode);
+			pOL->self->__numErr = errorCode;
 			return;
 		}
-
-		string str;
-		str.assign(reinterpret_cast<char *>(&(pOL->buffer)), bytesTransfered);
-		pOL->pThis->strOutArr.push(str);
+		pOL->self->OrCout.Push("Sev:ReadFromCliCompleted.\""
+			+std::string(pOL->buffer, bytesTransfered)+ "\"");
+		
+		pOL->self->__ssFromCli.write(pOL->buffer, bytesTransfered);
+		pOL->self->__ReadFromCli();
 	} }
 
-	, pfWriteToChildCompleted{ [](
+	, pfWriteToCliCompleted{ [](
 		DWORD errorCode
 		, DWORD bytesTransfered
 		, OVERLAPPED *overlapped) {
 
-		unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM *)> pOL = {
-			[&overlapped]() {OVERLAPPED_CUSTOM *p =
-			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped);	return p; }()
-			, [](OVERLAPPED_CUSTOM *p)->void {p->pThis->mlOL.Return(p); } };
 
-		//pOL->DataSize = bytesTransfered;
+		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM*)> pOL = {
+			reinterpret_cast<OVERLAPPED_CUSTOM*>(overlapped)
+			, [](OVERLAPPED_CUSTOM* p)->void {p->self->__mlOL.Return(p); } };
+
 		if (errorCode != ERROR_SUCCESS) {
-			ENOut(errorCode);
-			pOL->pThis->fIsSucceed = false;
+			debug_fnc::ENOut(errorCode);
+			pOL->self->__numErr = errorCode;
 			return;
 		}
+
+		pOL->self->OrCout.Push("Sev:WriteToCliCompleted. \""
+									+ std::string(pOL->buffer, bytesTransfered)
+									+ "\"\n");
 	} }
 
-	, mlOL(OLArr, NUM_OVERLAPPED)
+	, pThreadCli{ [](void* pvoid)->DWORD {
+		sampleIOCP* pThis = reinterpret_cast<sampleIOCP*>(pvoid);
+		std::string str;
+		for (;;) {
+			if (!pThis->__ReadCliSide(str)) {
+				return 1;
+			}
+			pThis->OrCout.Push("Cli:Client successfully read.\"" + str + "\"\n");
+
+			::Sleep(CLIENT_WORK_TIME);
+
+			if (!pThis->__WriteCliSide(str)) {
+				return 2;
+			}
+			pThis->OrCout.Push("Cli:Client successfully wrote.\"" + str + "\"\n");
+		}
+		return 0;
+	} }
+
+	, __mlOL(OLArr, NUM_OVERLAPPED)
 {
+	OrCout.Trigger(true);
 	CreatePipes();
-};
+	if (!__StartCliThread())
+		throw std::runtime_error("The creation of the subthread failed.");
+	__ReadFromCli();
+}
+sampleIOCP::~sampleIOCP() {
+	ClosePipes();
+	__EndCliThread();
+}
 
 wstring sampleIOCP::CreateNamedPipeString() {
 	GUID guid;
-	wstring wstr(0x100, L'\0');
-	if (CoCreateGuid(&guid) != S_OK) {
-		_MES("CoCreateGuid Err.");
-		throw runtime_error("CoCreateGuid Err.");
+	std::wstring wstr(MAX_STRING, L'\0');
+	if (::CoCreateGuid(&guid) != S_OK) {
+		debug_fnc::dout("CoCreateGuid Err.");
+		throw std::runtime_error("CoCreateGuid Err.");
 	};
-	wstr.resize(StringFromGUID2(guid, wstr.data(), (int)wstr.capacity()));
+	wstr.resize(::StringFromGUID2(guid, wstr.data(), (int)wstr.capacity()));
 	if (!wstr.size()) {
-		_MES("StringFromGUID2 Err.");
-		throw runtime_error("StringFromGUID2 Err.");
+		debug_fnc::dout("StringFromGUID2 Err.");
+		throw std::runtime_error("StringFromGUID2 Err.");
 	}
-	wstr = L"\\\\.\\pipe\\"  L"sampleOverLapped" + wstr + L"\\";
+	wstr = std::wstring(L"\\\\.\\pipe\\") + L"sampleIOCP" + wstr.c_str() + L"\\";
 	return wstr;
 }
 
 bool sampleIOCP::CreatePipes() {
-	SECURITY_ATTRIBUTES saAttr = {};
-	saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-	saAttr.bInheritHandle = FALSE;
-	saAttr.lpSecurityDescriptor = NULL;
-
 	{
-		saAttr.bInheritHandle = FALSE;
-		wstring wstr = CreateNamedPipeString();
-		if ((hSevW = CreateNamedPipeW(
+		std::wstring wstr = CreateNamedPipeString();
+		if ((__hSevW = ::CreateNamedPipeW(
 			wstr.c_str()
 			, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
-			, PIPE_TYPE_MESSAGE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
+			, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
 			, PIPE_UNLIMITED_INSTANCES
-			, BUFFER_SIZE
-			, BUFFER_SIZE
+			, BUFER_SIZE_PIPE
+			, BUFER_SIZE_PIPE
 			, 0
 			, NULL)) == INVALID_HANDLE_VALUE) {
-			EOut;
+			debug_fnc::ENOut(__numErr = ::GetLastError());
 			return FALSE;
 		}
 
-		saAttr.bInheritHandle = TRUE;
-		if ((hCliR = CreateFileW(
-			wstr.c_str(),   // pipe name 
-			PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,  // read and write access 
-			FILE_SHARE_WRITE | FILE_SHARE_READ,              // no sharing 
-			&saAttr,           // default security attributes
-			OPEN_EXISTING,  // opens existing pipe 
-			FILE_ATTRIBUTE_NORMAL,              // default attributes 
-			NULL// no template file 
+		if ((__hCliR = ::CreateFileW(
+			wstr.c_str()
+			, PIPE_ACCESS_DUPLEX
+			, FILE_SHARE_WRITE | FILE_SHARE_READ
+			, NULL
+			, OPEN_EXISTING
+			, FILE_ATTRIBUTE_NORMAL
+			, NULL
 		)) == INVALID_HANDLE_VALUE) {
-			EOut;
+			debug_fnc::ENOut(__numErr = ::GetLastError());
 			return FALSE;
 		};
 	}
 	{
-		saAttr.bInheritHandle = FALSE;
-		wstring wstr = CreateNamedPipeString();
-		if ((hSevR = CreateNamedPipeW(
+		std::wstring wstr = CreateNamedPipeString();
+		if ((__hSevR = ::CreateNamedPipeW(
 			wstr.c_str()
 			, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
-			, PIPE_TYPE_MESSAGE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
+			, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
 			, PIPE_UNLIMITED_INSTANCES
-			, BUFFER_SIZE
-			, BUFFER_SIZE
+			, BUFER_SIZE_PIPE
+			, BUFER_SIZE_PIPE
 			, 0
 			, NULL)) == INVALID_HANDLE_VALUE) {
-			EOut;
+			debug_fnc::ENOut(__numErr = ::GetLastError());
 			return FALSE;
 		}
 
-		saAttr.bInheritHandle = TRUE;
-		if ((hCliW = CreateFileW(
-			wstr.c_str(),   // pipe name 
-			PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,  // read and write access 
-			FILE_SHARE_WRITE | FILE_SHARE_READ,              // no sharing 
-			&saAttr,           // default security attributes
-			OPEN_EXISTING,  // opens existing pipe 
-			FILE_ATTRIBUTE_NORMAL,              // default attributes 
-			NULL// no template file 
+		if ((__hCliW = ::CreateFileW(
+			wstr.c_str()
+			, PIPE_ACCESS_DUPLEX
+			, FILE_SHARE_WRITE | FILE_SHARE_READ
+			, NULL
+			, OPEN_EXISTING
+			, FILE_ATTRIBUTE_NORMAL
+			, NULL
 		)) == INVALID_HANDLE_VALUE) {
-			EOut;
+			debug_fnc::ENOut(__numErr = ::GetLastError());
 			return FALSE;
 		};
 	}
 	return true;
 }
 
-bool sampleIOCP::WriteToCli(const string &str) {
-	OVERLAPPED_CUSTOM *pOL = &(*(mlOL.Lend()) = {});
-	//pOL->DataSize = (DWORD)str.size();
-	copy(str.begin(), str.end(), pOL->buffer);
-	pOL->h = hSevW;
-	pOL->pThis = this;
-	DWORD dw;
-	if (!WriteFileEx(
-		pOL->h
-		, &(pOL->buffer)
-		, (DWORD)str.size()
-		, (OVERLAPPED *)pOL
-		, pfWriteToChildCompleted)) {
-		dw = GetLastError();
-		if (dw != WAIT_IO_COMPLETION) {
-			ENOut(dw);
+bool sampleIOCP::__WriteToCli(const std::string& str) {
+	const std::size_t chunkSize = sizeof(OVERLAPPED_CUSTOM::buffer);  // バッファのサイズをチャンクサイズとする
+	std::size_t position = 0;
+
+	for (; position < str.size();) {
+		OVERLAPPED_CUSTOM* pOL = &(*(__mlOL.Lend()) = {});
+		std::size_t size = std::min<size_t>(chunkSize, str.size() - position);
+		std::copy(str.begin() + position, str.begin() + position + size, pOL->buffer);
+		pOL->self = this;
+		if (!WriteFileEx(
+			__hSevW
+			, &(pOL->buffer)
+			, (DWORD)size
+			, (OVERLAPPED*)pOL
+			, pfWriteToCliCompleted)) {
+			ENOut(__numErr = GetLastError());
 			return FALSE;
 		}
+		OrCout.Push("Sev:called __WriteToCli \"" + string(pOL->buffer, size) + "\"\n");
+		position += size;
+		::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
 	}
 	return true;
 }
 
-bool sampleIOCP::ReadFromCli() {
-	OVERLAPPED_CUSTOM *pOL = &(*(mlOL.Lend()) = {});
-	pOL->h = hSevR;
-	pOL->pThis = this;
-	//pOL->DataSize = 1024;
-	DWORD dw;
-	if (!ReadFileEx(
-		pOL->h
+
+
+bool sampleIOCP::__ReadFromCli() {
+	if (__numErr)
+		return false;
+	OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = {});
+	pOL->self = this;
+	if (!::ReadFileEx(
+		__hSevR
 		, &(pOL->buffer)
-		, BUFFER_SIZE
+		, sizeof(pOL->buffer)
 		, (OVERLAPPED *)pOL
-		, pfReadFromChildCompleted)) {
-		dw = GetLastError();
-		if (dw != WAIT_IO_COMPLETION) {
-			ENOut(dw);
-			return FALSE;
-		}
+		, pfReadFromCliCompleted)) {
+		debug_fnc::ENOut(__numErr = ::GetLastError());
+		return false;
+	}
+	OrCout.Push("Sev:called __ReadFromCli");
+	return true;
+}
+
+bool sampleIOCP::__StartCliThread()
+{
+	if (!(__hThreadCli =
+		::CreateThread(
+			NULL
+			, 0
+			, pThreadCli
+			, this
+			, 0
+			, NULL))) {
+		debug_fnc::ENOut(__numErr = ::GetLastError());
+		return false;
 	}
 	return true;
 }
 
-bool sampleIOCP::WriteCli(const string &str) const {
-	DWORD cbWrites;
-	if (!WriteFile(
-		hCliW
+bool sampleIOCP::__EndCliThread()
+{
+	::WaitForSingleObject(__hThreadCli, INFINITE);
+	::CloseHandle(__hThreadCli);
+	__hThreadCli = NULL;
+	return true;
+}
+
+bool sampleIOCP::__WriteCliSide(const std::string &str) {
+	DWORD cbWrites(0);
+	if (!::WriteFile(
+		__hCliW
 		, str.data()
 		, (DWORD)str.size()
 		, &cbWrites
 		, NULL)) {
-		EOut;
+		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return FALSE;
 	}
 	return TRUE;
 }
 
-bool sampleIOCP::ReadCli(string &str) {
+bool sampleIOCP::__ReadCliSide(std::string &str) {
 	DWORD dwRead;
-	str.resize(1024, '\0');
-	if (!ReadFile(hCliR
+	str.resize(BUFFER_SIZE_CL_SIDE, '\0');
+	if (!::ReadFile(__hCliR
 					  , str.data()
 					  , (DWORD)str.size()
 					  , &dwRead
 					  , NULL)) {
-		EOut;
+		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return FALSE;
 	}
 	str.resize(dwRead);
@@ -214,90 +259,64 @@ bool sampleIOCP::ReadCli(string &str) {
 }
 
 bool sampleIOCP::ClosePipes() {
-	CancelIoEx(hSevR, NULL);
-	CancelIoEx(hSevW, NULL);
-	SleepEx(0, TRUE);
-	CloseHandle(hSevR);
-	CloseHandle(hSevW);
-	CloseHandle(hCliR);
-	CloseHandle(hCliW);
-	return true;
-}
-
-bool sampleIOCP::CancelSev() {
-	if (!CancelIoEx(hSevR, NULL)) {
-		EOut;
-	}
-	if (!CancelIoEx(hSevW, NULL)) {
-		EOut;
-	}
-	SleepEx(0, TRUE);
+	::CancelIoEx(__hSevR, NULL);
+	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
+	::CancelIoEx(__hSevW, NULL);
+	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
+	::CancelIoEx(__hCliR, NULL);
+	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
+	::CancelIoEx(__hCliW, NULL);
+	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
+	::CloseHandle(__hCliR);
+	::CloseHandle(__hCliW);
+	::CloseHandle(__hSevR);
+	::CloseHandle(__hSevW);
 	return true;
 }
 
 void sampleIOCP::ResetFlag() {
-	bool tmp = fIsSucceed;
-	fIsSucceed = true;
-	fIsTimeOut = false;
+	__numErr = 0;
 }
 
 inline unsigned sampleIOCP::SetTimeOut(unsigned uiTime) {
-	unsigned tmp = TimeOut;
-	TimeOut = uiTime;
+	unsigned tmp = __TimeOut;
+	__TimeOut = uiTime;
 	return tmp;
 }
 
-sampleIOCP &sampleIOCP::operator<<(const string &str) {
-	if (!fIsSucceed)
+sampleIOCP &sampleIOCP::operator<<(const std::string &str) {
+	if (__numErr)
 		return *this;
-	if (!WriteToCli(str)) {
-		fIsSucceed = false;
-		return *this;
-	};
+	__WriteToCli(str);
 	return *this;
 }
 
 sampleIOCP &sampleIOCP::operator>>(string &str) {
-	if (!fIsSucceed)
+	if (__numErr)
 		return *this;
 
-	if (strOutArr.empty()) {
-		if (!ReadFromCli()) {
-			fIsSucceed = false;
-			return *this;
-		}
-		SleepEx(TimeOut, TRUE);
-		if (strOutArr.empty()) {
-			fIsSucceed = false;
-			fIsTimeOut = true;
-			return *this;
-		}
+	OrCout.Push("Sev:Call SleepEx\n");
+	__numErr = ::SleepEx(__TimeOut, TRUE);
+	switch (__numErr) {
+	case WAIT_IO_COMPLETION:
+	{
+		OrCout.Push("Sev:called SleepEx \"WAIT_IO_COMPLETION\"\n");
+		__numErr = 0;
+		str = __ssFromCli.str();
+		__ssFromCli.str("");
+		__ssFromCli.clear();
+		break;
 	}
-
-	str = strOutArr.front();
-	strOutArr.pop();
+	case 0:
+	{
+		std::cout << "Sev:\"ERROR_TIMEOUT\"" << std::endl;
+		break;
+	}
+	default:
+		break;
+	}
 	return *this;
 }
-
-//int main() {
-//	{
-//		sampleIOCP s;
-//		if (!(s << "ToCli1"))
-//			return 1;
-//		string str;
-//		s.ReadCli(str);
-//		cout << str << endl;
-//		s.WriteCli("Reply from child");
-//		string str2;
-//		if (!(s >> str2))
-//			return 1;
-//		cout << str2 << endl;
-//	}
-//	_CrtDumpMemoryLeaks();
-//	return 0;
-//}
-
-
 
 
 
