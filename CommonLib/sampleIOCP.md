@@ -52,16 +52,16 @@ IOCPは、CPUの計算速度に比べて、周辺機器IOがのんびりとし�
 
 ### この記事で取り扱うプログラムの事前説明
 
-#### 名前付きパイプサーバー側とクライアント側に分かれ、それぞれが別スレッドで動き、データの流れ、タイミングをみます
+**1. 名前付きパイプサーバー側とクライアント側に分かれ、それぞれが別スレッドで動き、データの流れ、タイミングをみます**
 　Microsoftのサンプルプログラムであれば、パイプサーバー(クライアントの接続を待つ側）と、クライアント（サーバーのパイプに接続する側）が別々のプロセスで動くように作られています。しかし、この記事で使う、`sampleIOCP`は一つにまとめました。
 
-#### 上り用、下り用の２つの名前付きパイプを使います。
+**2. 上り用、下り用の２つの名前付きパイプを使います**
 
-#### クライアント側はサーバー側からきたデータをそのまんまエコーします
+**3. クライアント側はサーバー側からきたデータをそのまんまエコーします**
 　読み込み、書き込みが一つのループに収まっています。
 
-#### パイプはバイトストリームとして扱うように設定
-　名前付きパイプは、データを塊として扱う`PIPE_TYPE_MESSAGE`、サイズが確定できない、バイトが川の流れのように次々転送される`PIPE_TYPE_BYTE`モードか、どちらかを選択できます。このプログラムでは`PIPE_TYPE_BYTE`モードを指定しました。
+**4. パイプはバイトストリームとして扱うように設定**
+　名前付きパイプは、データを塊として扱う**PIPE_TYPE_MESSAGE**、サイズが確定できない、バイトが川の流れのように次々転送される**PIPE_TYPE_BYTE**モードか、どちらかを選択します。このプログラムでは**PIPE_TYPE_BYTE**モードを指定しました。
 
 ## デモコードと解説
 ### この記事で使うソースコードへのリンク
@@ -77,7 +77,7 @@ IOCPは、CPUの計算速度に比べて、周辺機器IOがのんびりとし�
 ## コードの解説
 　下記にデモコードを記載します。次に実行結果の画面を記載します。その後、番号のコメントが付けられているところの、解説を順次行います。
 ### mainのコード
-#### testIOCP.cpp
+**testIOCP.cpp**
 ```testIOCP.cpp
 #include "testIOCP.h"
 #include <conio.h>
@@ -104,7 +104,7 @@ int main() {
 }
 ```
 ### 実行結果
-#### コンソール
+**コンソール**
 ```コンソール.
 Sev:Enter __ReadFromCli                         0.000 msec // 1
 Sev:Leave __ReadFromCli                         0.013 msec // 2
@@ -124,26 +124,27 @@ Main:total elapsed time. 118.640 msec // 15
 ```
 ### mainソースコードの解説
 
-1. **sampleIOCP s;**
+**1. sampleIOCP s;**
 　`sampleIOCP`オブジェクトを作成
-2. **s << "Hello, World!"**
+**2. s << "Hello, World!"**
 　パイプサーバー側にデータを送る。`sampleIOCP`オブジェクトが文字列を読み込み、名前付きパイプを通じてクライアント側へ書き込みをします。その後、内部では、クライアントが読み込み、クライアントからサーバーに書き込みをします。
-3. **s.Await(100) >> str**
+**3. s.Await(100) >> str**
 　クライアントから返ってきた文字列を**str**に書き込む。`Await(100)`は、100msec待つという意味です。クライアントがラグで直ぐに遅れない事に対応しています。
-4. **s.OrCout.Push("Main:\\"" + str + "\\"")**
+**4. s.OrCout.Push("Main:\\"" + str + "\\"")**
 　結果を表示する。`s.OrCout.Push("Main:\"" + str + "\"");`の、`OrCout`は、シリアライズ化して順番を維持して表示する、OrderedCOutというクラスのオブジェクトです。前の表示との時間差を表示する機能もあります。
-5. **s.OrCout.StopTimer()**
+**5. s.OrCout.StopTimer()**
 　OrCoutの計測タイマーをストップさせる
-6. **s.OrCout.ShowTimeDisplay(false)**
-　タイムを表示させる機能を停止
-7. **stringstream ss;// 7
+**6. s.OrCout.ShowTimeDisplay(false)**
+　タイムを表示させる機能を停止。
+**7. stringstream ss;// 7
 ss << std::fixed << std::setprecision(3) << s.OrCout.TotalTime() << " msec";
 s.OrCout.Push("Main:total elapsed time. " + ss.str() );**
-　トータルタイムを表示させる
+　トータルタイムを表示させる。
+
 :::note info
 　このOrderedCOutクラスの解説は、今回は割愛します。
 :::
-### mainソースコードの解説終わりです
+### 以上、mainソースコードの解説終わりです
 
 ### 実行結果の表示の解説
 #### 再掲載　コンソール
@@ -164,31 +165,31 @@ Sev:Leave operator>>                            111.523 msec // 12
 Main:"Hello, World!"                            0.998 msec // 13
 Main:total elapsed time. 118.640 msec // 15
 ```
-1. **Sev:Enter __ReadFromCli                         0.000 msec // 1
+**1. Sev:Enter __ReadFromCli                         0.000 msec // 1
 Sev:Leave __ReadFromCli                         0.013 msec**
 　サーバー側、読み込み関数の中に入り、出ました。これで、予め、読み込みが可能になったら、**読み込み完了コールバック**が呼ばれるようにしておきます。**msec**は前の表示との時間差を表示します。一番最初の表示がタイマースタートのトリガーになります。
-2. **Sev:Enter __WriteToCli                          0.474 msec // 2**
+**2. Sev:Enter __WriteToCli                          0.474 msec // 2**
 **Sev:Leave __WriteToCli                          0.541 msec // 4**
 　サーバー側、書き込み関数の中に入り、出ました。
-3. **Sev:Server successfully wrote. "Hello, World!"  0.894 msec // 3**
+**3. Sev:Server successfully wrote. "Hello, World!"  0.894 msec // 3**
 　書き込み動作が成功しました。
 
-4. **Sev:Enter operator>>                            0.548 msec // 5
+**4. Sev:Enter operator>>                            0.548 msec // 5
 Sev:Leave operator>>                            111.523 msec // 12**
 　出力オペレーターの関数内に入り、出ました。かなり間隔が空いているのが判ります。その間には、複数の他の操作が行われているのが見て取れます。また、**Leave**には**111.523 msec**と、時間がかかっているのが、判ります。これは、**Await**でタイムアウト時間を**100 msec**にした効果が現れているとみられます。
 
-5. **Cli:Client successfully read."Hello, World!"    0.738 msec // 6**
+**5. Cli:Client successfully read."Hello, World!"    0.738 msec // 6**
 　クライアント側、読み込み成功。
-6. **Sev:WriteToCliCompleted. "Hello, World!"        0.467 msec // 7**
+**6. Sev:WriteToCliCompleted. "Hello, World!"        0.467 msec // 7**
 　サーバー側、書き込み完了コールバック関数が呼ばれました。
-8. **Cli:Client successfully wrote."Hello, World!"   0.549 msec // 8**
+**8. Cli:Client successfully wrote."Hello, World!"   0.549 msec // 8**
 　クライアント側、書き込み成功。
-9. **Sev:ReadFromCliCompleted."Hello, World!"        0.581 msec // 9**
+**9. Sev:ReadFromCliCompleted."Hello, World!"        0.581 msec // 9**
 　サーバー側、読み込み完了コールバック関数が呼ばれました。
-10. **Sev:Enter __ReadFromCli                         0.720 msec // 10
+**10. Sev:Enter __ReadFromCli                         0.720 msec // 10
 Sev:Leave __ReadFromCli                         0.589 msec // 11**
 　サーバー側、読み込み完了コールバック関数の中で、次の読み込みが出来るようにこの関数が呼ばれています。　
-11. **Main:"Hello, World!"                            0.998 msec // 13**
+**11. Main:"Hello, World!"                            0.998 msec // 13**
 　main関数でクライアントからエコーされたデータを表示しています。成功したようです。
 ### 以上、表示の解説終わりです
 
@@ -222,7 +223,7 @@ Main:total elapsed time. 118.115 msec
 
 ## ここでちょっと実験
 　バッファがパイプとカスタムオーバーラップ構造体にあるのですが、どのような影響が出るのか見てみたいと思います。
-- ../CommonLib/sampleIOCP.h
+**../CommonLib/sampleIOCP.h**
 ```../CommonLib/sampleIOCP.h
 class  sampleIOCP{
 	static constexpr DWORD BUFFER_SIZE_OL = 0x10;
@@ -233,7 +234,7 @@ class  sampleIOCP{
 ### 実験のコンディション
 　リリースビルド、オプティマイズありにします。また、実行はコマンドプロンプトを立ち上げてその中でします。
 ### BUFFER_SIZE_OL = 0x10 -> BUFFER_SIZE_OL = 0x4
-- 結果コンソール
+**結果コンソール**
 ```結果コンソール.
 Sev:Enter __ReadFromCli                         0.000 msec
 Sev:Leave __ReadFromCli                         0.004 msec
@@ -269,7 +270,7 @@ Main:total elapsed time. 127.547 msec
 　細かく分割されて交信していますね。でも正確に伝達できたようです。では、`BUFFER_SIZE_OL = 0x10`に戻して、次の実験をします。
 ### BUFER_SIZE_PIPE = 0x100->BUFER_SIZE_PIPE = 0x00
 　これ、要るのか、要らないか、よく分からない設定でしたので、どうなるのでしょう。
-- 結果コンソール
+**結果コンソール**
 ```結果コンソール.
 Sev:Enter __ReadFromCli                         0.000 msec
 Sev:Leave __ReadFromCli                         0.003 msec
@@ -289,7 +290,7 @@ Main:total elapsed time. 117.949 msec
 ```
 　特に違いはなさそうですね。
 ### 実験の結果
-1. コードをうまく書いていれば、**BUFFER_SIZE_OL**バッファサイズは小さくても、大丈夫。
+1. コードをうまく書いていれば、**BUFFER_SIZE_OL**バッファサイズは小さくても、大丈夫であった。
 2. BUFER_SIZE_PIPEのサイズの差は見られなかった。
 
 ## 以上で実験を終わります
