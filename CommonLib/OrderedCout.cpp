@@ -8,7 +8,7 @@
 #include "OrderedCout.h"
 
 OrderedCOut::OrderedCOut() :
-	hEvent{ []() {HANDLE h;
+	hEventThread{ []() {HANDLE h;
 		if (!(h = ::CreateEvent(NULL,TRUE,FALSE,NULL))) {
 			std::string str = debug_fnc::ENOut(::GetLastError());
 			throw std::runtime_error(str);
@@ -17,12 +17,93 @@ OrderedCOut::OrderedCOut() :
 	,
 		::CloseHandle }
 	
+	, hEventMessage{ []() {HANDLE h;
+		if (!(h = ::CreateEvent(NULL,TRUE,FALSE,NULL))) {
+			std::string str = debug_fnc::ENOut(::GetLastError());
+			throw std::runtime_error(str);
+		};
+		return h; }()
+	,
+		::CloseHandle }
+
 	,__mlms(__MessageArr, UNIT_SIZE)
 
 	, __pAPCProc{ [](ULONG_PTR dwParam) {
 		std::unique_ptr<message ,void(*)(message*)> pmes = {
 			reinterpret_cast<message*>(dwParam)
 			, [](message* p)->void {p->self->__mlms.Return(p); } };
+
+		switch (pmes->op) {
+		case OP::NOOP:
+			break;
+		case OP::SIG_EVENT:
+		{
+			SetEvent(pmes->hEvent);
+			return;
+		}
+		case OP::START_DISPLAY_TIME:
+		{
+			pmes->self->bIsDisplayTime = true;
+			return;
+		}
+		case OP::STOP_DISPLAY_TIME:
+		{
+			pmes->self->bIsDisplayTime = false;
+			return;
+		}
+		case OP::START_TIMER:
+		{
+			LARGE_INTEGER li;
+			::QueryPerformanceCounter(&li);
+			pmes->self->__StartingTime = li.QuadPart;
+			pmes->self->__GapTime = pmes->self->__StartingTime;
+			pmes->self->bIsMeasuring = true;
+			return;
+		}
+		case OP::STOP_TIMER:
+		{
+			pmes->self->bIsMeasuring = false;
+			return;
+		}
+		case OP::RESUME_TIMER:
+		{
+			pmes->self->bIsMeasuring = true;
+			return;
+		}
+		case OP::RESET:
+		{
+			pmes->self->__StartingTime = 0;
+			pmes->self->__GapTime = 0;
+			pmes->self->bTrigger = true;
+			pmes->self->bIsMeasuring = true;
+			pmes->self->bIsDisplayTime = true;
+			return;
+		}
+		case OP::START_TRIGGER:
+		{
+			pmes->self->bTrigger = true;
+			return;
+		}
+		case OP::STOP_TRIGGER:
+		{
+			pmes->self->bTrigger = false;
+			return;
+		}
+		case OP::TOTAL_TIME:
+		{
+			LARGE_INTEGER Frequency{};
+			::QueryPerformanceFrequency(&Frequency);
+			LARGE_INTEGER ElapsedMicroseconds{};
+			ElapsedMicroseconds.QuadPart = pmes->self->__GapTime - pmes->self->__StartingTime;
+			ElapsedMicroseconds.QuadPart *= 1000000;
+			ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+			*reinterpret_cast<double*>(pmes->pvoid) = ElapsedMicroseconds.QuadPart / 1000.0;
+			::SetEvent(pmes->hEvent);
+			return;
+		}
+		default:
+			break;
+		}
 
 		std::string str(pmes->buffer, pmes->size);
 		// ÅŒã‚Ì•¶Žš‚ª'\n'‚Å‚ ‚é‚©Šm”F
@@ -40,27 +121,36 @@ OrderedCOut::OrderedCOut() :
 			paddedMessage = paddedMessage.substr(0, MESSAGE_SPACE_WIDTH);
 		}
 
-		if (pmes->self->__StartingTime.QuadPart) {
+		if (pmes->self->bIsMeasuring) {
 			LARGE_INTEGER CurrentTime;
 			::QueryPerformanceCounter(&CurrentTime);
 			LARGE_INTEGER Frequency{};
 			::QueryPerformanceFrequency(&Frequency);
 			LARGE_INTEGER ElapsedMicroseconds{};
-			ElapsedMicroseconds.QuadPart = CurrentTime.QuadPart - pmes->self->__GapTime.QuadPart;
+			ElapsedMicroseconds.QuadPart = CurrentTime.QuadPart - pmes->self->__GapTime;
 			ElapsedMicroseconds.QuadPart *= 1000000;
 			ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
 			double time_taken = ElapsedMicroseconds.QuadPart / 1000.0;
-			pmes->self->__GapTime.QuadPart = CurrentTime.QuadPart;
-
-			std::cout << paddedMessage << " "
-				<< std::fixed << std::setprecision(3) << time_taken << " msec" << std::endl;
+			pmes->self->__GapTime = CurrentTime.QuadPart;
+			if (pmes->self->bIsDisplayTime) {
+				std::cout << paddedMessage << " "
+					<< std::fixed << std::setprecision(3) << time_taken << " msec" << std::endl;
+			} else {
+				std::cout << paddedMessage << std::endl;
+			}
 		} else {
 			std::stringstream ss;
 			if (pmes->self->bTrigger) {
+				pmes->self->bTrigger = false;
 				std::cout << paddedMessage << " "
 					<< std::fixed << std::setprecision(3) << double(0) << " msec" << std::endl;
-				pmes->self->StartTimer();
-			} else {
+				LARGE_INTEGER li;
+				::QueryPerformanceCounter(&li);
+				pmes->self->__StartingTime = li.QuadPart;
+				pmes->self->__GapTime = li.QuadPart;
+				pmes->self->bIsMeasuring = true;
+
+			} else{
 				std::cout << paddedMessage << std::endl;
 			}
 		}
@@ -70,14 +160,14 @@ OrderedCOut::OrderedCOut() :
 		OrderedCOut* pThis = reinterpret_cast<OrderedCOut*>(pvoid);
 
 		for (;;) {
-			DWORD dwWaitResult = ::WaitForSingleObjectEx(pThis->hEvent.get(), INFINITE, TRUE);
-			if (dwWaitResult == WAIT_IO_COMPLETION) {
+			DWORD dw = ::WaitForSingleObjectEx(pThis->hEventThread.get(), INFINITE, TRUE);
+			if (dw == WAIT_IO_COMPLETION) {
 				_D("APC executed.");
-			} else if (dwWaitResult == WAIT_OBJECT_0) {
+			} else if (dw == WAIT_OBJECT_0) {
 				_D("Event signaled.");
 				return 0;
 			} else {
-				debug_fnc::ENMOut((pThis->__numErr = ::GetLastError()), "Wait failed.");
+				debug_fnc::ENOut((pThis->__numErr = ::GetLastError()));
 				return 1;
 			}
 		}
@@ -97,7 +187,7 @@ OrderedCOut::OrderedCOut() :
 }
 
 OrderedCOut::~OrderedCOut() {
-	::SetEvent(hEvent.get());
+	::SetEvent(hEventThread.get());
 	::WaitForSingleObject(hThread.get(), INFINITE);
 }
 
@@ -120,30 +210,78 @@ OrderedCOut& OrderedCOut::StartTimer()
 {
 	if (__numErr)
 		return *this;
-	::QueryPerformanceCounter(&__StartingTime);
-	__GapTime.QuadPart = __StartingTime.QuadPart;
+	PushOp(OP::START_TIMER);
 	return *this;
 }
 
 bool OrderedCOut::Trigger(bool b)
 {
-	bool tmp = bTrigger;
-	bTrigger = b;
-	return tmp;
+	PushOp(OP::START_TRIGGER);
+	return bTrigger;
 }
 
 OrderedCOut& OrderedCOut::StopTimer()
 {
 	if (__numErr)
 		return *this;
-	__StartingTime = {};
+	PushOp(OP::STOP_TIMER);
 	return *this;
+}
+
+OrderedCOut& OrderedCOut::ResumeTimer(){
+	if( __numErr )
+		return *this;
+	PushOp(OP::RESUME_TIMER);
+	return *this;
+}
+
+double OrderedCOut::TotalTime() {
+	std::atomic<double> dTime{};
+	::ResetEvent(hEventMessage.get());
+	PushOp(OP::TOTAL_TIME, hEventMessage.get(),&dTime);
+	DWORD dw;
+	if( !((dw = ::WaitForSingleObject(hEventMessage.get(), INFINITE)) == WAIT_OBJECT_0) ){
+		if( dw == WAIT_FAILED ){
+			debug_fnc::ENOut(__numErr = ::GetLastError());
+		}
+		return 0.0;
+	}
+	return dTime;
+}
+
+bool OrderedCOut::ShowTimeDisplay(bool bdisp) {
+	PushOp(bdisp ? OP::START_DISPLAY_TIME : OP::STOP_DISPLAY_TIME);
+	return bIsDisplayTime;
 }
 
 OrderedCOut& OrderedCOut::ResetFlag()
 {
-	__numErr = 0;
-	bTrigger = false;
-	__StartingTime = {};
+	PushOp(OP::RESET);
 	return *this;
+}
+
+OrderedCOut& OrderedCOut::MessageFlush(){
+	::ResetEvent(hEventMessage.get());
+	PushOp(OP::SIG_EVENT,hEventMessage.get());
+	DWORD dw;
+	if(!((dw = ::WaitForSingleObject(hEventMessage.get(), INFINITE)) == WAIT_OBJECT_0)){
+		if( dw == WAIT_FAILED ){
+			debug_fnc::ENOut(__numErr = ::GetLastError());
+		}
+		return *this;
+	}
+	return *this;
+}
+
+bool OrderedCOut::PushOp(OP op, HANDLE h,void* pvoid){
+	message* pmes = &(*(__mlms.Lend()) = {});
+	pmes->self = this;
+	pmes->op = op;
+	pmes->hEvent = h;
+	pmes->pvoid = pvoid;
+	if( !::QueueUserAPC(__pAPCProc, hThread.get(), (ULONG_PTR)pmes) ){
+		debug_fnc::ENOut(__numErr = ::GetLastError());
+		return false;
+	}
+	return true;
 }

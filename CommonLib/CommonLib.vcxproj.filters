@@ -32,6 +32,7 @@
     <None Include="MemoryLoan.md" />
     <None Include="ZennMemoryLoan.md" />
     <None Include="sampleIOCP.md" />
+    <None Include="ZennsampleIOCP.md" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sampleIOCP.cpp">

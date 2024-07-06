@@ -13,28 +13,56 @@ https://qiita.com/GoldSmith/items/1de197c10c05c054461a
 の、**メモリープールコンテナ**クラスを使って構築しています。こちらの記事も、よろしければご覧ください。
 # きっかけ
 　[[C++]Pythonに追いつきたい! subprocessの実装](https://qiita.com/GoldSmith/items/aeec5a42fcc76dd6f37d "[C++]Pythonに追いつきたい! subprocessの実装")の記事を書いた後、ずっと気になっていたことがありました。「ここでの**WAIT_IO_COMPLETION**の比較は何か違うよな。」とか、「パイプタイプ**PIPE_TYPE_MESSAGE**はこれで**いいのか**？**でも**、[Microsoftサンプルプログラム](https://learn.microsoft.com/ja-jp/windows/win32/ipc/named-pipe-server-using-completion-routines "Microsoftサンプルプログラム")に、**こう書いてあった**な。」とか、「**パイプバッファーは必要なの？**」など疑問が残っていました。それで、改めて**私自身が、IOCPの処理の流れが理解でき**、パイプ設定を変えるとどうなるか判るプログラムを書いてみる事にしました。
+# 改訂にあたって
+　初版を書いて公開したところ、これを読んでくれた方から指摘を受けました。
+>･･･非同期IOの完了通知をCreateIOCompletionPort/GetQueuedCompletionStatusで受け取るAPIを指すのが普通です。
+
+ 「ああっ、そういうことか。」私は、完了ルーチンを書けば「IOCP」だと思っていたのですが、よく見ると、「ポート」要素が見つかりません。
+　と、いう事で記事を書き直すことを決め、今に至っています。ですので、記事の内容は以前と違ったものになります。また、私は、IOCPのプログラムを書いたことは無かったのですが、以前、Microsoftのファイルを扱うサンプルコードに、なんかループがあったなと、心の隅に引っかかっていまして、そのループの意味を探りながらコードを書き直しました。そのサンプルコードはどこで見たのかは、思い出せていません。OVERLAPPED構造体をキャストしていた、SleepExを使っていた、というところも思い出したのですが、その時はその意味を理解できていませんでした。
+　で、書き直しに取っ掛かり始めたところ、流れは、非同期と同じことが判りました。完了コールバック関数もそのまま利用できます。そこでメンバー関数名はそのままにして、その関数の中のコードを`#define USING_IOCP` `#else` `#endif`で分ける事にしました。これで、ただの非同期とIOCPとの違いを確かめる事が出来るようになりました。
+　また、IOCPといえばサーバーで、マルチスレッドで扱うイメージですが、１クライアントに１ステートを割り当て、交信することが想定されていると思いますで、OVERLAPPED構造体を内包した構造体に、クライアント情報を載せて、処理を進める事になろうかと思います。しかし、このサンプルコードは１クライアントとの交信に絞って流れを見ていきたいので、サーバーはメインスレッド、クライアントはサブスレッドという単純な構成にしています。
+　また、記事中の実行結果などは、この記事を書きながら収集していきますので、以前とは違ったものになり、結果も違ったものになると想像されます。
+
+## Bing Copilotに改めてIOCPについて尋ねると、まさかの答えが･･･
+
+>･･･Completion Port（完了ポート）は、Windowsの非同期データ転送処理を行うための一連のシステムサービスで、特にI/O Completion Port (IOCP)として知られています。
+IOCPは、CPUの計算速度に比べて、周辺機器IOがのんびりとしたデータ転送を行うための仕組みです。そのため、IOのデータ転送にCPUがかかりっきりになると、CPUが計算できたはずの機会を無駄に過ごすことになります。そこで、CPUは計算しながら、時々IOに気にかけるような仕組みが用意されました。それがIOCPです。･･･
+
+　それ、私が書いた **"この"** 記事なんですけど･･･。
+　Qiitaの利用規約通りなので文句は無いのですが、Bing Copilotの情報収集の速さに驚いたとともに、やはり、収集できる情報源が少なく、採用されたって感じなんでしょうか。それだけ、ニッチな題材なんでしょうね。Webで公式ドキュメントに書いてあるのにも関わらず、ニッチさにおいては１、２位を争うのではないでしょうか？
+　また内容において、APCキューを使えば、「時々IOに気にかけるような」という表現はおかしいのではないかと思われるかもしれませんが、まあ、これ単体での話であって、それ言いだしたらスレッドプールまで作らなくてはならなくなり、IOCP単体での話でなくなるので、あまり気にしないでいただきたいと思います。
+ 
 # なぜ非同期（IOCP）が必要なのか？
 
 　**IOCP**(Input/Output Completion Port)とは、Windowsの非同期データ転送処理をする為の一連のシステムサービスです。一般に、CPUの計算速度に比べて、周辺機器IOはのんびりとしたデータ転送をします。その為、IOのデータ転送にCPUがかかりっきりになると、CPUが計算できたはずの機会を、無駄に過ごすことになります。そこで、CPUは計算しながら、時々IOに気にかけるような、仕組みが用意されました。それが**IOCP**です。
+
 ## 非同期処理は、メモリーを期限未定で貸して処理をしてもらうもの
 　`ReadFileEx`で例えると、システムに「**読み込んだデータをこれに書き込んでおいて。**」とメモリ領域を渡して、暫くして「**あれ、どうなった？**」と、システムに尋ねて、その時、システムが読み込みを完了していたら「**ああ、あれね。**」といって完了通知コールバック関数を呼び出し、尋ねた相手に「**完了しました。**」と返事を返す仕組みです。ですので、**至急これを読み込んでデータがほしい！**　みたいな場合は、非同期の良さは出ません。
+
 ## 通常、この仕組みを使う事はあるの？
-　httpsでインターネットから非同期でデータを読み込むなどの、ニーズが考えられますが、https接続は、すでにライブラリとして[libcurl](https://curl.se/libcurl/ "libcurl")や、[httplib.h](https://github.com/yhirose/cpp-httplib/ "httplib.h")があるので、別のスレッドを立ててこのライブラリを使い、必要になったタイミングでデータを取得するというのが、一般的な方法になると思いますので、下層のIOCPを使って何かやるという事はありません。
+　**クライアント・サーバモデル**なら、SIerさんの領域ですので、まずはこの目的で書く事は無いでしょう。
+　別の目的で、httpsでインターネットから非同期でデータを読み込むなどの、ニーズが考えられますが、https接続は、すでにライブラリとして[libcurl](https://curl.se/libcurl/ "libcurl")や、[httplib.h](https://github.com/yhirose/cpp-httplib/ "httplib.h")があるので、別のスレッドを立ててこのライブラリを使い、必要になったタイミングでデータを取得するというのが、一般的な方法になると思いますので、下層のIOCPを使って何かやるという事はないでしょう。
+
 ## 使うとすれば、デファクトスタンダード規格になってないカスタムなデディケーテッドサーバーとか
 　例えば、実在するボードゲームをコンピュータ化した物を、思考エンジン同士で競い合わせるデディケーテッドサーバーを作る目的で使うのはありかと思います。スレッドプールと組み合わせれば、通信があるときのみコンピュータに負荷を持たせる事も出来、効率のいい物が出来そうです。ネットワークの最大接続数も、私個人が確認したところ、1nicあたり16000強はいけます。ただ、高性能のルーターでないと最大セッション数に縛られるかもしれません。
 　通常、**思考エンジンは**ボードの子プロセスとして起動され、**ボードとのプロトコルは備えていますが、エンジン同士でネットワークを通じて競うプロトコルは持っていません。** そこを補うプログラムと、プロトコルを作ればエンジン同士の対戦が出来るわけです。
+
 ## この記事は取り合えずICPOの流れをつかむことに特化しています
-　「プログラミングWindow」では、この仕組みは説明されていません。なので、理解する為の情報源は[Microsoft公式サイト](https://learn.microsoft.com/ja-jp/windows/win32/ipc/named-pipe-server-using-completion-routines "完了ルーチンを使用した名前付きパイプ サーバー")になるわけですが、このIOCPを使ったサンプルプログラムは、判りやすいとは私には言えません。プログラムの流れが非常に判りにくくなっています。また、パラメーターをいろいろ変えた時の、動作の確認をするのもめんどくさそうです。それで、今回、ICPOの流れを視覚化して見るプログラムを作ってみました。
+　「プログラミングWindow」では、この仕組みは説明されていません。なので、理解する為の情報源は[完了ルーチンを使用した名前付きパイプ サーバー](https://learn.microsoft.com/ja-jp/windows/win32/ipc/named-pipe-server-using-completion-routines "完了ルーチンを使用した名前付きパイプ サーバー")と、[`CreateIOCompletionPort`](https://learn.microsoft.com/ja-jp/windows/win32/api/ioapiset/nf-ioapiset-createiocompletionport "CreateIOCompletionPort") /[`GetQueuedCompletionStatus`](https://learn.microsoft.com/ja-jp/windows/win32/api/ioapiset/nf-ioapiset-getqueuedcompletionstatus "GetQueuedCompletionStatus")のドキュメントを元に、カスタマイズしていくわけですが、私は、Microsoftのサンプルプログラムは、判りやすいとは言えないと思います。プログラムの流れが非常に判りにくくなっています。また、パラメーターをいろいろ変えた時の、動作の確認をするのもめんどくさそうです。それで、今回、ICPOの流れを視覚化して見るプログラムを作ってみました。
 
 ### この記事で取り扱うプログラムの事前説明
+
 #### 名前付きパイプサーバー側とクライアント側に分かれ、それぞれが別スレッドで動き、データの流れ、タイミングをみます
 　Microsoftのサンプルプログラムであれば、パイプサーバー(クライアントの接続を待つ側）と、クライアント（サーバーのパイプに接続する側）が別々のプロセスで動くように作られています。しかし、この記事で使う、`sampleIOCP`は一つにまとめました。
-#### サーバー側はパイプにデータを書き込み、クライアント側からの返事を待ちます
-　書き込み用、読み込み用２つの名前付きパイプを使っています。
+
+#### 上り用、下り用の２つの名前付きパイプを使います。
+
 #### クライアント側はサーバー側からきたデータをそのまんまエコーします
 　読み込み、書き込みが一つのループに収まっています。
+
 #### パイプはバイトストリームとして扱うように設定
 　名前付きパイプは、データを塊として扱う`PIPE_TYPE_MESSAGE`、サイズが確定できない、バイトが川の流れのように次々転送される`PIPE_TYPE_BYTE`モードか、どちらかを選択できます。このプログラムでは`PIPE_TYPE_BYTE`モードを指定しました。
+
 ## デモコードと解説
 ### この記事で使うソースコードへのリンク
 [GitHubへのリンクはここです。Visual Studio 2022用に設定されたslnファイルもあります。](https://github.com/NewGoldSmith/SubProcess "https://github.com/NewGoldSmith/SubProcess")
@@ -49,8 +77,10 @@ https://qiita.com/GoldSmith/items/1de197c10c05c054461a
 ## コードの解説
 　下記にデモコードを記載します。次に実行結果の画面を記載します。その後、番号のコメントが付けられているところの、解説を順次行います。
 ### mainのコード
+#### testIOCP.cpp
 ```testIOCP.cpp
 #include "testIOCP.h"
+#include <conio.h>
 using namespace std;
 int main() {
 	{
@@ -58,211 +88,217 @@ int main() {
 		if (!(s << "Hello, World!"))// 2
 			return 1;
 		string str;
-		if (!(s >> str))// 3
+		if (!(s.Await(100) >> str))// 3
 			return 1;
 		s.OrCout.Push("Main:\"" + str + "\"");// 4
+
+		s.OrCout.StopTimer();// 5
+		s.OrCout.ShowTimeDisplay(false);// 6
+		stringstream ss;// 7
+		ss << std::fixed << std::setprecision(3) << s.OrCout.TotalTime() << " msec";
+		s.OrCout.Push("Main:total elapsed time. " + ss.str() );
 	}
 	_CrtDumpMemoryLeaks();
+	(void)_getch();
 	return 0;
 }
 ```
 ### 実行結果
+#### コンソール
 ```コンソール.
-Sev:called __ReadFromCli                        0.000 msec //  5
-Sev:called __WriteToCli "Hello, World!"         0.010 msec //  6
-Sev:WriteToCliCompleted. "Hello, World!"        0.479 msec //  7
-Sev:Call SleepEx                                0.448 msec //  8
-Cli:Client successfully read."Hello, World!"    0.704 msec //  9
-Cli:Client successfully wrote."Hello, World!"   1.096 msec // 10
-Sev:ReadFromCliCompleted."Hello, World!"        1.046 msec // 11
-Sev:called __ReadFromCli                        1.318 msec // 12
-Sev:called SleepEx "WAIT_IO_COMPLETION"         1.052 msec // 13
-Main:"Hello, World!"                            0.831 msec // 14
+Sev:Enter __ReadFromCli                         0.000 msec // 1
+Sev:Leave __ReadFromCli                         0.013 msec // 2
+Sev:Enter __WriteToCli                          0.474 msec // 3
+Sev:Server successfully wrote. "Hello, World!"  0.894 msec // 4
+Sev:Leave __WriteToCli                          0.541 msec // 5
+Sev:Enter operator>>                            0.548 msec // 6
+Cli:Client successfully read."Hello, World!"    0.738 msec // 7
+Sev:WriteToCliCompleted. "Hello, World!"        0.467 msec // 8
+Cli:Client successfully wrote."Hello, World!"   0.549 msec // 9
+Sev:ReadFromCliCompleted."Hello, World!"        0.581 msec // 10
+Sev:Enter __ReadFromCli                         0.720 msec // 11
+Sev:Leave __ReadFromCli                         0.589 msec // 12
+Sev:Leave operator>>                            111.523 msec // 13
+Main:"Hello, World!"                            0.998 msec // 14
+Main:total elapsed time. 118.640 msec // 15
 ```
 ### mainソースコードの解説
 
-#### １、sampleIOCP s;
-##### `sampleIOCP`オブジェクトを作成
-　デフォルトコンストラクタを使います。
-#### ２、s << "Hello, World!"
-##### パイプサーバー側にデータを送る
-　sampleIOCPオブジェクトが文字列を読み込み、名前付きパイプを通じてクライアント側へ書き込みをします。その後、内部では、クライアントが読み込み、クライアントからサーバーに書き込みをします。
-#### ３、s >> str
-##### クライアントから返ってきた文字列をstd::stringに書き込む
-#### ４、`s.OrCout.Push("Main:\"" + str + "\"");`
-##### 結果を表示する
-　`s.OrCout.Push("Main:\"" + str + "\"");`の、`OrCout`は、シリアライズ化して順番を維持して表示する、OrderedCOutというクラスのオブジェクトです。前の表示との時間差を表示する機能もあります。
-
+1. **sampleIOCP s;**
+　`sampleIOCP`オブジェクトを作成
+2. **s << "Hello, World!"**
+　パイプサーバー側にデータを送る。`sampleIOCP`オブジェクトが文字列を読み込み、名前付きパイプを通じてクライアント側へ書き込みをします。その後、内部では、クライアントが読み込み、クライアントからサーバーに書き込みをします。
+3. **s.Await(100) >> str**
+　クライアントから返ってきた文字列を**str**に書き込む。`Await(100)`は、100msec待つという意味です。クライアントがラグで直ぐに遅れない事に対応しています。
+4. **s.OrCout.Push("Main:\\"" + str + "\\"")**
+　結果を表示する。`s.OrCout.Push("Main:\"" + str + "\"");`の、`OrCout`は、シリアライズ化して順番を維持して表示する、OrderedCOutというクラスのオブジェクトです。前の表示との時間差を表示する機能もあります。
+5. **s.OrCout.StopTimer()**
+　OrCoutの計測タイマーをストップさせる
+6. **s.OrCout.ShowTimeDisplay(false)**
+　タイムを表示させる機能を停止
+7. **stringstream ss;// 7
+ss << std::fixed << std::setprecision(3) << s.OrCout.TotalTime() << " msec";
+s.OrCout.Push("Main:total elapsed time. " + ss.str() );**
+　トータルタイムを表示させる
 :::note info
 　このOrderedCOutクラスの解説は、今回は割愛します。
 :::
+### mainソースコードの解説終わりです
 
 ### 実行結果の表示の解説
-#### ５、Sev:called __ReadFromCli                        0.000 msec
-##### サーバー側、`__ReadFromCli`呼び出し
-　表示ですが、行頭から、**Sev:** はサーバー側のメッセージである事を現しています。クライアント側のメッセージは**Cli:** から始まります。「**`Sev:called __ReadFromCli`** 」は、サーバー側が 「**`__ReadfromCli`**　」という関数の呼び出しをした事を表示しています。最後の「**msec**」は前の表示との時間差です。この表示は一番最初の表示なので、0.000 msecとなっています。
-　「何かデータが来たら読み込んでおいて。」という指示です。
-#### ６、Sev:called __WriteToCli "Hello, World!"         0.010 msec
-##### サーバー側、書き込みを行う
-　「**`__WriteToCli`** 」関数が呼ばれ、**`"Hello, World!"`** のというデータの書き込みをしたことを表しています。前のメッセージの表示から**0.010 msec**時間が経っています。
-　この表示される時間は、時間差を計算するプログラムの時間や、その他の作業時間も含まれています。
-#### ７、Sev:WriteToCliCompleted. "Hello, World!"        0.479 msec
-##### サーバー側、書き込み完了コールバック関数が呼ばれた
-　このコールバックで、書き込みをする為に、システムに貸し出していたメモリーを回収します。このプログラムの場合、メモリープールにメモリを返却します。
-#### ８、Sev:Call SleepEx                                0.448 msec
-##### サーバー側、`SleepEx`呼び出し
-　コールバック関数にスレッドが回る様にします。これのおかげでWriteToCliCompletedというスレッドが回り（CPUのプログラムカウンタにコールバックのアドレスがロードされ、実行され）ました。
-#### ９、Cli:Client successfully read."Hello, World!"    0.704 msec
-##### クライアント側がパイプから"Hello, World"を読み込みの成功
-#### １０、Cli:Client successfully wrote."Hello, World!"   1.096 msec
-##### クライアント側、書き込みが成功
-　**同期書き込み**しています。この後ループで**読み込み待ち**になります。
-#### １１、Sev:ReadFromCliCompleted."Hello, World!"        1.046 msec
-##### サーバ―側、読み込み完了コールバック関数が呼ばれた
-　「**５、**」でコールしていた`__ReadFromCli`の完了報告がコールバックにてされた事を表しています。
-#### １２、Sev:called __ReadFromCli                        1.318 msec
-##### サーバー側、`__ReadFromCli`を呼び出した
-　次のデータを受け取る為に、`__ReadFromCli`が呼ばれました。もちろん次のデータが来なくて、プログラムが終了する事もあります。
-#### １３、Sev:called SleepEx "WAIT_IO_COMPLETION"         1.052 msec
-##### サーバー側、呼んでいた`SleepEx`の戻り値が返され、その結果が`WAIT_IO_COMPLETION`（IO操作が完了した旨の数字）であった
-　「**８、**」の呼び出しの戻り値。
-#### １４、Main:"Hello, World!"                            0.831 msec
-##### main関数（testIOCP.cppの「**４、**」）のコードを実行
-　サーバーがクライアントから送られてきたデータを取得し、それをメイン関数の`std::string`に渡し、main関数内の`s.OrCout.Push("Main:\"" + str + "\"");`で表示しています。
-### 以上、デモコードの解説でした
-## ここでちょっと実験
-### ストリームってサイズ不定だよね。バッファのサイズ大丈夫？
-　ストリームタイプは一般的なWebサイトにアクセスする時にも使われます。ネットはソケットですが、Windowsシステムにしてみれば、同じような物です。この記事の内容は、ソケットでも同じような仕組みが使えます。
-　`ReadFileEx`や`WrieFileEx`に渡すバッファサイズが小さい場合どのようになるか見ていきましょう。次のコードは**OVERLAPPED_CUSTOM**という、OVERLAPPED構造体に、**`this`ポインター**とchar型の **`buffer`** を加えたものを定義しています。
-```sampleOverLapped.h
-class  sampleIOCP {
-    // 他のコードもありますが省略
-	struct OVERLAPPED_CUSTOM {
-		OVERLAPPED ol{};
-		sampleIOCP* self{};
-		char buffer[BUFFER_SIZE_OL]{};
-	};
- }
+#### 再掲載　コンソール
+```コンソール.
+Sev:Enter __ReadFromCli                         0.000 msec // 1
+Sev:Leave __ReadFromCli                         0.013 msec
+Sev:Enter __WriteToCli                          0.474 msec // 2
+Sev:Server successfully wrote. "Hello, World!"  0.894 msec // 3
+Sev:Leave __WriteToCli                          0.541 msec // 4
+Sev:Enter operator>>                            0.548 msec // 5
+Cli:Client successfully read."Hello, World!"    0.738 msec // 6
+Sev:WriteToCliCompleted. "Hello, World!"        0.467 msec // 7
+Cli:Client successfully wrote."Hello, World!"   0.549 msec // 8
+Sev:ReadFromCliCompleted."Hello, World!"        0.581 msec // 9
+Sev:Enter __ReadFromCli                         0.720 msec // 10
+Sev:Leave __ReadFromCli                         0.589 msec // 11
+Sev:Leave operator>>                            111.523 msec // 12
+Main:"Hello, World!"                            0.998 msec // 13
+Main:total elapsed time. 118.640 msec // 15
 ```
-　この**OVERLAPPED_CUSTOM::buffer**を使って、読み込んだり、書き込んだりしているのですが、このサイズより大きいデータはどう処理されるのか、見てみましょう。
-### ソースを一部書き換える
-#### testIOCP.cpp
-```testIOCP.cpp
-#include "testIOCP.h"
-using namespace std;
-int main() {
-	{
-		sampleIOCP s;// 1
-		if (!(s << "Hello, World!"))// 2
-			return 1;
-		Sleep(1000); // *5
-		string str;
-		if (!(s >> str))// 3
-			return 1;
-		s.OrCout.Push("Main:\"" + str + "\"");// 4
-	}
-	_CrtDumpMemoryLeaks();
-	return 0;
-}
-```
-　「*5」の所、`Sleep(1000);`を加えます。
+1. **Sev:Enter __ReadFromCli                         0.000 msec // 1
+Sev:Leave __ReadFromCli                         0.013 msec**
+　サーバー側、読み込み関数の中に入り、出ました。これで、予め、読み込みが可能になったら、**読み込み完了コールバック**が呼ばれるようにしておきます。**msec**は前の表示との時間差を表示します。一番最初の表示がタイマースタートのトリガーになります。
+2. **Sev:Enter __WriteToCli                          0.474 msec // 2**
+**Sev:Leave __WriteToCli                          0.541 msec // 4**
+　サーバー側、書き込み関数の中に入り、出ました。
+3. **Sev:Server successfully wrote. "Hello, World!"  0.894 msec // 3**
+　書き込み動作が成功しました。
+
+4. **Sev:Enter operator>>                            0.548 msec // 5
+Sev:Leave operator>>                            111.523 msec // 12**
+　出力オペレーターの関数内に入り、出ました。かなり間隔が空いているのが判ります。その間には、複数の他の操作が行われているのが見て取れます。また、**Leave**には**111.523 msec**と、時間がかかっているのが、判ります。これは、**Await**でタイムアウト時間を**100 msec**にした効果が現れているとみられます。
+
+5. **Cli:Client successfully read."Hello, World!"    0.738 msec // 6**
+　クライアント側、読み込み成功。
+6. **Sev:WriteToCliCompleted. "Hello, World!"        0.467 msec // 7**
+　サーバー側、書き込み完了コールバック関数が呼ばれました。
+8. **Cli:Client successfully wrote."Hello, World!"   0.549 msec // 8**
+　クライアント側、書き込み成功。
+9. **Sev:ReadFromCliCompleted."Hello, World!"        0.581 msec // 9**
+　サーバー側、読み込み完了コールバック関数が呼ばれました。
+10. **Sev:Enter __ReadFromCli                         0.720 msec // 10
+Sev:Leave __ReadFromCli                         0.589 msec // 11**
+　サーバー側、読み込み完了コールバック関数の中で、次の読み込みが出来るようにこの関数が呼ばれています。　
+11. **Main:"Hello, World!"                            0.998 msec // 13**
+　main関数でクライアントからエコーされたデータを表示しています。成功したようです。
+### 以上、表示の解説終わりです
+
+## 普通の非同期と比べてみる
+　普通の非同期はどんな動きをするか見てみましょう。
 #### ../CommonLib/sampleIOCP.h
+　`#define USING_IOCP`をコメントアウトして、ビルドします。
 ```../CommonLib/sampleIOCP.h
-class  sampleIOCP {
-	static constexpr DWORD BUFFER_SIZE_OL = 0x4;
+//#define USING_IOCP
+```
+### 実行結果
+##### コンソール
+```コンソール.
+Sev:Enter __ReadFromCli                         0.000 msec
+Sev:Leave __ReadFromCli                         0.011 msec
+Sev:Enter __WriteToCli                          0.614 msec
+Sev:Server successfully wrote. "Hello, World!"  0.489 msec
+Sev:Leave __WriteToCli                          0.453 msec
+Sev:Enter operator>>                            0.487 msec
+Cli:Client successfully read."Hello, World!"    0.455 msec
+Sev:WriteToCliCompleted. "Hello, World!"        0.516 msec
+Cli:Client successfully wrote."Hello, World!"   1.795 msec
+Sev:ReadFromCliCompleted."Hello, World!"        0.531 msec
+Sev:Enter __ReadFromCli                         0.729 msec
+Sev:Leave __ReadFromCli                         0.607 msec
+Sev:Leave operator>>                            110.552 msec
+Main:"Hello, World!"                            0.871 msec
+Main:total elapsed time. 118.115 msec
+```
+　実は、内容に違いはありません。
+
+## ここでちょっと実験
+　バッファがパイプとカスタムオーバーラップ構造体にあるのですが、どのような影響が出るのか見てみたいと思います。
+- ../CommonLib/sampleIOCP.h
+```../CommonLib/sampleIOCP.h
+class  sampleIOCP{
+	static constexpr DWORD BUFFER_SIZE_OL = 0x10;
 	static constexpr DWORD BUFFER_SIZE_CL_SIDE = 0x400;
 	static constexpr DWORD BUFER_SIZE_PIPE = 0x100;
 ```
-　`BUFFER_SIZE_OL = 0x10`の所を、`BUFFER_SIZE_OL = 0x4`に変更します。
-### 実行してみる
-```コンソール.
-Sev:called __ReadFromCli                        0.000 msec
-Sev:called __WriteToCli "Hell"                  0.010 msec
-Sev:WriteToCliCompleted. "Hell"                 0.781 msec
-Cli:Client successfully read."Hell"             0.430 msec
-Sev:called __WriteToCli "o, W"                  0.427 msec
-Sev:WriteToCliCompleted. "o, W"                 0.427 msec
-Sev:called __WriteToCli "orld"                  0.638 msec
-Sev:WriteToCliCompleted. "orld"                 0.432 msec
-Sev:called __WriteToCli "!"                     0.553 msec
-Sev:WriteToCliCompleted. "!"                    0.573 msec
-Cli:Client successfully wrote."Hell"            0.553 msec
-Cli:Client successfully read."o, World!"        0.457 msec
-Cli:Client successfully wrote."o, World!"       1.970 msec
-Sev:Call SleepEx                                1004.541 msec
-Sev:ReadFromCliCompleted."Hell"                 1.321 msec
-Sev:called __ReadFromCli                        1.127 msec
-Sev:ReadFromCliCompleted."o, W"                 0.699 msec
-Sev:called __ReadFromCli                        0.578 msec
-Sev:ReadFromCliCompleted."orld"                 0.492 msec
-Sev:called __ReadFromCli                        0.612 msec
-Sev:ReadFromCliCompleted."!"                    0.594 msec
-Sev:called __ReadFromCli                        0.571 msec
-Sev:called SleepEx "WAIT_IO_COMPLETION"         0.566 msec
-Main:"Hello, World!"                            0.580 msec
+　このように**sampleIOCP**の宣言にバッファサイズが変更できるようになっています。これを変更します。**BUFFER_SIZE_CL_SIDE**は、クライアント側バッファサイズですが、これは変更しないで、十分用意されているものとして、サーバー側を見ていきます。
+### 実験のコンディション
+　リリースビルド、オプティマイズありにします。また、実行はコマンドプロンプトを立ち上げてその中でします。
+### BUFFER_SIZE_OL = 0x10 -> BUFFER_SIZE_OL = 0x4
+- 結果コンソール
+```結果コンソール.
+Sev:Enter __ReadFromCli                         0.000 msec
+Sev:Leave __ReadFromCli                         0.004 msec
+Sev:Enter __WriteToCli                          0.907 msec
+Sev:Server successfully wrote. "Hell"           0.964 msec
+Sev:WriteToCliCompleted. "Hell"                 1.058 msec
+Sev:Server successfully wrote. "o, W"           0.821 msec
+Sev:WriteToCliCompleted. "o, W"                 0.689 msec
+Sev:Server successfully wrote. "orld"           0.691 msec
+Sev:WriteToCliCompleted. "orld"                 0.792 msec
+Sev:Server successfully wrote. "!"              0.688 msec
+Sev:WriteToCliCompleted. "!"                    0.691 msec
+Sev:Leave __WriteToCli                          0.697 msec
+Sev:Enter operator>>                            0.682 msec
+Cli:Client successfully read."Hello, World!"    0.686 msec
+Cli:Client successfully wrote."Hello, World!"   4.667 msec
+Sev:ReadFromCliCompleted."Hell"                 1.736 msec
+Sev:Enter __ReadFromCli                         0.776 msec
+Sev:ReadFromCliCompleted."o, W"                 0.816 msec
+Sev:Enter __ReadFromCli                         0.751 msec
+Sev:ReadFromCliCompleted."orld"                 0.672 msec
+Sev:Enter __ReadFromCli                         0.684 msec
+Sev:ReadFromCliCompleted."!"                    0.778 msec
+Sev:Enter __ReadFromCli                         0.670 msec
+Sev:Leave __ReadFromCli                         1.265 msec
+Sev:Leave __ReadFromCli                         0.669 msec
+Sev:Leave __ReadFromCli                         0.678 msec
+Sev:Leave __ReadFromCli                         0.667 msec
+Sev:Leave operator>>                            102.164 msec
+Main:"Hello, World!"                            1.171 msec
+Main:total elapsed time. 127.547 msec
 ```
-### 見て判る事
-**１：** パイプサーバー側は**細かく分けて書き込んでいる**のが判ります。サーバー側のプログラムで細かく分けるようにしています。**このコードは自分で書かなければなりません**。クライアント側は、その分けた文字列を**そのまま受け取る事もあり**、また、**まとめて受け取る事もある**事が判ります。クライアント側のバッファサイズは1024バイトで十分用意しています。
-**２：** クライアント側は２回に分けて、読み込み、また、書き込んでいるのが判ります。
-**３：** `Sev:Call SleepEx`が表示されるまで、**１秒強**経過しているのが判ります。これはmain.cppの`Sleep(1000);`でメインスレッドがスリープしているのが、原因と考えられます。この、`Sleep(1000);`は、サブスレッドでクライアント側が、**エコー出来る余裕**を与えるつもりで加えました。
-**４：** サーバー側の読み込みも細かく読み込んでいるのが判ります。
-### 更に書き換えてみる
-#### ../CommonLib/sampleIOCP.h
-```../CommonLib/sampleIOCP.h
-class  sampleIOCP {
-	static constexpr DWORD BUFFER_SIZE_OL = 0x4;
-	static constexpr DWORD BUFFER_SIZE_CL_SIDE = 0x400;
-	static constexpr DWORD BUFER_SIZE_PIPE = 0x00;
+　細かく分割されて交信していますね。でも正確に伝達できたようです。では、`BUFFER_SIZE_OL = 0x10`に戻して、次の実験をします。
+### BUFER_SIZE_PIPE = 0x100->BUFER_SIZE_PIPE = 0x00
+　これ、要るのか、要らないか、よく分からない設定でしたので、どうなるのでしょう。
+- 結果コンソール
+```結果コンソール.
+Sev:Enter __ReadFromCli                         0.000 msec
+Sev:Leave __ReadFromCli                         0.003 msec
+Sev:Enter __WriteToCli                          1.616 msec
+Sev:Server successfully wrote. "Hello, World!"  0.812 msec
+Sev:Leave __WriteToCli                          0.873 msec
+Sev:Enter operator>>                            0.670 msec
+Cli:Client successfully read."Hello, World!"    0.677 msec
+Sev:WriteToCliCompleted. "Hello, World!"        0.709 msec
+Cli:Client successfully wrote."Hello, World!"   0.728 msec
+Sev:ReadFromCliCompleted."Hello, World!"        0.804 msec
+Sev:Enter __ReadFromCli                         0.987 msec
+Sev:Leave __ReadFromCli                         0.880 msec
+Sev:Leave operator>>                            107.734 msec
+Main:"Hello, World!"                            1.450 msec
+Main:total elapsed time. 117.949 msec
 ```
-　**`BUFER_SIZE_PIPE`** を0にしてみます。これは、パイプを作った時に指定するバッファーサイズです。
-```../CommonLib/sampleIOCP.cpp
-::CreateNamedPipeW(
-			wstr.c_str()
-			, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
-			, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
-			, PIPE_UNLIMITED_INSTANCES
-			, BUFER_SIZE_PIPE
-			, BUFER_SIZE_PIPE
-			, 0
-			, NULL)
-```
-　このように、サーバー側パイプを作るときに、指定しています。
-### 実行してみる
-```コンソール.
-Sev:called __ReadFromCli                        0.000 msec
-Sev:called __WriteToCli "Hell"                  0.010 msec
-Sev:called __WriteToCli "o, W"                  0.447 msec
-Sev:called __WriteToCli "orld"                  0.459 msec
-Cli:Client successfully read."Hello, World"     0.647 msec
-Sev:WriteToCliCompleted. "Hell"                 0.436 msec
-Sev:WriteToCliCompleted. "o, W"                 0.515 msec
-Sev:WriteToCliCompleted. "orld"                 0.526 msec
-Sev:called __WriteToCli "!"                     0.476 msec
-Sev:Call SleepEx                                997.969 msec
-Sev:ReadFromCliCompleted."Hell"                 1.739 msec
-Sev:called __ReadFromCli                        0.622 msec
-Sev:ReadFromCliCompleted."o, W"                 0.525 msec
-Sev:called __ReadFromCli                        0.565 msec
-Sev:ReadFromCliCompleted."orld"                 0.967 msec
-Cli:Client successfully wrote."Hello, World"    0.631 msec
-Cli:Client successfully read."!"                0.564 msec
-Sev:called __ReadFromCli                        0.639 msec
-Sev:WriteToCliCompleted. "!"                    0.631 msec
-Sev:called SleepEx "WAIT_IO_COMPLETION"         0.611 msec
-Main:"Hello, World"                             0.596 msec
-```
-　最後の行、**Main:"Hello, World"** となっています。main関数で表示する時に、最後の文字 **「!」が間に合っていません**。**何回か実行すると間に合う時もあるようです。** また、別の時には `Main:"Hello, W"`  と、**全然間に合っていないときもあり**ました。このことから、**パイプのバッファを設定する意味はありそうです。**
-## 実験の結果、判った事
-　この記事を書きながら、実験を行ったところもあり、その中で感じた事です。
-**１、**　受信の時は、バッファーサイズに合ったデータが格納されていく。
-**２、**　**パイプバッファー**の設定も**受信特性**が変化する。
-**３、**　ストリームを扱う時は、**上層プロトコルでデータの区切りを判断する**必要がありそうだ。ソケット通信でも当てはまる事だと思われる。
-## 以上で実験終わり
-### まとめ
-#### １、IOCPの知識が曖昧だったので、IOCPの流れが判るプログラムを作った。
-#### ２、パイプのタイプは**PIPE_TYPE_BYTE**を選択。
-#### ３、計測したところ、条件によっては、データ取得タイミング時にデータが、全て揃ってない事があった。**PIPE_TYPE_MESSAGE**であれば、データが来たか来てないかの二択であったと思われる。**PIPE_TYPE_BYTE**は身近な用途ではネットワークに使われている。用途に応じて使い分けが必要だと感じた。**PIPE_TYPE_BYTE**か、**PIPE_TYPE_MESSAGE**の選択は悩ましいが、子プログラムがcmd.exeなら改行が文の終わりとなっているので、**PIPE_TYPE_BYTE**が、向いているのではないかと思われる。
-#### ４、以前作った**SubProcess**のプログラムは、やはり**IOCP**の使い方が洗練されて無かった。できれば修正するのが、望ましい。
+　特に違いはなさそうですね。
+### 実験の結果
+1. コードをうまく書いていれば、**BUFFER_SIZE_OL**バッファサイズは小さくても、大丈夫。
+2. BUFER_SIZE_PIPEのサイズの差は見られなかった。
+
+## 以上で実験を終わります
+## 全体のまとめ
+1. IOCPの知識が曖昧だったので、IOCPの流れが判るプログラムを作った。
+2. パイプのタイプは**PIPE_TYPE_BYTE**（ストリーム）を選択。
+3. 一応、動作は正常だった。
+4. 以前作った「SubProcess」のプログラムは、やはり洗練されて無かった。できれば修正するのが、望ましい。
+5. コーディングをし直すなど、手間がかかったが、理解が深まった。
 # 終わりに
 　「**[C++][Windows]IOCPを理解する**」の解説は以上となります。この記事が皆様の閃きや発想のきっかけになりましたら幸いです。
 　また、ご意見、ご感想、ご質問など、お待ちしております。
