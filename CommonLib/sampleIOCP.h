@@ -21,12 +21,12 @@
 #include "../CommonLib/OrderedCout.h"
 #pragma comment(lib,  "../Debug_fnc/" STRINGIZE($CONFIGURATION) "/Debug_fnc-" STRINGIZE($CONFIGURATION) ".lib")
 
-//#define USING_IOCP
+#define USING_IOCP
 
 class  sampleIOCP{
 	static constexpr DWORD BUFFER_SIZE_OL = 0x10;
 	static constexpr DWORD BUFFER_SIZE_CL_SIDE = 0x400;
-	static constexpr DWORD BUFER_SIZE_PIPE = 0x100;
+	static constexpr DWORD BUFER_SIZE_PIPE = 0x00;
 	static constexpr DWORD NUM_OVERLAPPED = 0x10;
 	static constexpr DWORD DEFAULT_TIMEOUT = 100;
 	static constexpr DWORD CONTINUOUS_TIMEOUT = 0;

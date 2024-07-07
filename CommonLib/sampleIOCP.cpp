@@ -181,19 +181,19 @@ bool sampleIOCP::__CreatePipes() {
 	return true;
 }
 
-bool sampleIOCP::__CancelMultipleIO() {
+bool sampleIOCP::__CancelMultipleIO(){
+	::CancelIoEx(__hSevR, NULL);
+	::CancelIoEx(__hSevW, NULL);
 
 #ifdef USING_IOCP
-	if (!::CancelSynchronousIo(__hThreadCli)) {
+	if( !::CancelSynchronousIo(__hThreadCli) ){
 		debug_fnc::ENOut(__numErr = ::GetLastError());
 	}
-	::CancelIoEx(__hSevR,NULL);
-	::CancelIoEx(__hSevW,NULL);
 
-	for (;;) {
+	for( ;;){
 		__numErr = __WaitForIOCompletion(CONTINUOUS_TIMEOUT);
 
-		switch (__numErr) {
+		switch( __numErr ){
 		case 0:
 		{
 			continue;
@@ -210,22 +210,16 @@ bool sampleIOCP::__CancelMultipleIO() {
 end_of_loop:
 
 #else // !USING_IOCP
-	::CancelIoEx(__hSevR, NULL);
 	for( ;; ){
-		if( ::SleepEx(CONTINUOUS_TIMEOUT, TRUE) == WAIT_IO_COMPLETION )
+		DWORD dw;
+		if( (dw = ::SleepEx(CONTINUOUS_TIMEOUT, TRUE)) == WAIT_IO_COMPLETION ){
 			continue;
-		break;
-	}
-	::CancelIoEx(__hSevW, NULL);
-	for( ;; ){
-		if( ::SleepEx(CONTINUOUS_TIMEOUT, TRUE) == WAIT_IO_COMPLETION )
-			continue;
+		}
+		debug_fnc::ENOut(dw);
 		break;
 	}
 	::CancelIoEx(__hCliR, NULL);
-	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
 	::CancelIoEx(__hCliW, NULL);
-	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
 #endif // USING_IOCP
 	return true;
 }
