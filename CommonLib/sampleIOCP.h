@@ -21,7 +21,7 @@
 #include "../CommonLib/OrderedCout.h"
 #pragma comment(lib,  "../Debug_fnc/" STRINGIZE($CONFIGURATION) "/Debug_fnc-" STRINGIZE($CONFIGURATION) ".lib")
 
-#define USING_IOCP
+//#define USING_IOCP
 
 class  sampleIOCP{
 	static constexpr DWORD BUFFER_SIZE_OL = 0x10;

@@ -106,7 +106,7 @@ sampleIOCP::~sampleIOCP() {
 	__EndCliThread();
 }
 
-wstring sampleIOCP::__CreateNamedPipeStringW() {
+std::wstring sampleIOCP::__CreateNamedPipeStringW() {
 	GUID guid;
 	std::wstring wstr(MAX_STRING, L'\0');
 	if (::CoCreateGuid(&guid) != S_OK) {
@@ -118,8 +118,7 @@ wstring sampleIOCP::__CreateNamedPipeStringW() {
 		debug_fnc::dout("StringFromGUID2 Err.");
 		throw std::runtime_error("StringFromGUID2 Err.");
 	}
-	wstr = std::wstring(L"\\\\.\\pipe\\") + L"sampleIOCP" + wstr.c_str() + L"\\";
-	return wstr;
+	return std::wstring(L"\\\\.\\pipe\\") + L"sampleIOCP" + wstr.c_str() + L"\\";
 }
 
 bool sampleIOCP::__CreatePipes() {
@@ -212,9 +211,17 @@ end_of_loop:
 
 #else // !USING_IOCP
 	::CancelIoEx(__hSevR, NULL);
-	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
+	for( ;; ){
+		if( ::SleepEx(CONTINUOUS_TIMEOUT, TRUE) == WAIT_IO_COMPLETION )
+			continue;
+		break;
+	}
 	::CancelIoEx(__hSevW, NULL);
-	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
+	for( ;; ){
+		if( ::SleepEx(CONTINUOUS_TIMEOUT, TRUE) == WAIT_IO_COMPLETION )
+			continue;
+		break;
+	}
 	::CancelIoEx(__hCliR, NULL);
 	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
 	::CancelIoEx(__hCliW, NULL);
@@ -373,7 +380,6 @@ bool sampleIOCP::__ReadFromCli() {
 	}
 #endif // USING_IOCP
 
-	bool at_least_one_loop(0);
 	for (;;) {
 
 #ifdef USING_IOCP
@@ -396,13 +402,11 @@ bool sampleIOCP::__ReadFromCli() {
 		{
 			OrCout.Push("Sev:successfully operator>>. \"WAIT_IO_COMPLETION\"\n");
 			__numErr = 0;
-			at_least_one_loop = true;
 			continue;
 		}
 		case 0:
 		{
-			if (at_least_one_loop)
-				__numErr = 0;
+			__numErr = 0;
 			goto end_of_loop;
 		}
 		default:
