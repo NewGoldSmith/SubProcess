@@ -162,9 +162,9 @@ OrderedCOut::OrderedCOut() :
 		for (;;) {
 			DWORD dw = ::WaitForSingleObjectEx(pThis->hEventThread.get(), INFINITE, TRUE);
 			if (dw == WAIT_IO_COMPLETION) {
-				_D("APC executed.");
+				debug_fnc::_D("APC executed.");
 			} else if (dw == WAIT_OBJECT_0) {
-				_D("Event signaled.");
+				debug_fnc::_D("Event signaled.");
 				return 0;
 			} else {
 				debug_fnc::ENOut((pThis->__numErr = ::GetLastError()));
@@ -210,13 +210,13 @@ OrderedCOut& OrderedCOut::StartTimer()
 {
 	if (__numErr)
 		return *this;
-	PushOp(OP::START_TIMER);
+	__PushOp(OP::START_TIMER);
 	return *this;
 }
 
 bool OrderedCOut::Trigger(bool b)
 {
-	PushOp(OP::START_TRIGGER);
+	__PushOp(OP::START_TRIGGER);
 	return bTrigger;
 }
 
@@ -224,21 +224,21 @@ OrderedCOut& OrderedCOut::StopTimer()
 {
 	if (__numErr)
 		return *this;
-	PushOp(OP::STOP_TIMER);
+	__PushOp(OP::STOP_TIMER);
 	return *this;
 }
 
 OrderedCOut& OrderedCOut::ResumeTimer(){
 	if( __numErr )
 		return *this;
-	PushOp(OP::RESUME_TIMER);
+	__PushOp(OP::RESUME_TIMER);
 	return *this;
 }
 
 double OrderedCOut::TotalTime() {
 	std::atomic<double> dTime{};
 	::ResetEvent(hEventMessage.get());
-	PushOp(OP::TOTAL_TIME, hEventMessage.get(),&dTime);
+	__PushOp(OP::TOTAL_TIME, hEventMessage.get(),&dTime);
 	DWORD dw;
 	if( !((dw = ::WaitForSingleObject(hEventMessage.get(), INFINITE)) == WAIT_OBJECT_0) ){
 		if( dw == WAIT_FAILED ){
@@ -250,19 +250,19 @@ double OrderedCOut::TotalTime() {
 }
 
 bool OrderedCOut::ShowTimeDisplay(bool bdisp) {
-	PushOp(bdisp ? OP::START_DISPLAY_TIME : OP::STOP_DISPLAY_TIME);
+	__PushOp(bdisp ? OP::START_DISPLAY_TIME : OP::STOP_DISPLAY_TIME);
 	return bIsDisplayTime;
 }
 
 OrderedCOut& OrderedCOut::ResetFlag()
 {
-	PushOp(OP::RESET);
+	__PushOp(OP::RESET);
 	return *this;
 }
 
 OrderedCOut& OrderedCOut::MessageFlush(){
 	::ResetEvent(hEventMessage.get());
-	PushOp(OP::SIG_EVENT,hEventMessage.get());
+	__PushOp(OP::SIG_EVENT,hEventMessage.get());
 	DWORD dw;
 	if(!((dw = ::WaitForSingleObject(hEventMessage.get(), INFINITE)) == WAIT_OBJECT_0)){
 		if( dw == WAIT_FAILED ){
@@ -273,7 +273,7 @@ OrderedCOut& OrderedCOut::MessageFlush(){
 	return *this;
 }
 
-bool OrderedCOut::PushOp(OP op, HANDLE h,void* pvoid){
+bool OrderedCOut::__PushOp(OP op, HANDLE h,void* const pvoid){
 	message* pmes = &(*(__mlms.Lend()) = {});
 	pmes->self = this;
 	pmes->op = op;

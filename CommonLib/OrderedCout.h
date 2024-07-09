@@ -57,7 +57,7 @@ private:
 		, START_TRIGGER
 		, STOP_TRIGGER
 		, TOTAL_TIME
-	} op;
+	};
 	struct message{
 		OrderedCOut* self;
 		DWORDLONG op{ OP::NOOP };
@@ -68,9 +68,10 @@ private:
 		};
 		char buffer[BUFFER_SIZE];
 	};
-	bool PushOp(OP op, HANDLE h = NULL, void* pvoid = NULL);
+	bool __PushOp(OP op, HANDLE h = NULL, void* const pvoid = NULL);
 	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> hEventThread;
 	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> hEventMessage;
+	message __MessageArr[UNIT_SIZE];
 	MemoryLoan<message> __mlms;
 	VOID(CALLBACK* const __pAPCProc)(ULONG_PTR);
 	LONGLONG __StartingTime{};
@@ -79,7 +80,6 @@ private:
 	bool bTrigger{};
 	bool bIsMeasuring{};
 	bool bIsDisplayTime{ true };
-	message __MessageArr[UNIT_SIZE];
 	LPTHREAD_START_ROUTINE const pThreadProc;
 	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> hThread;
 

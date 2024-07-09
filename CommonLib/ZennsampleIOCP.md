@@ -7,9 +7,7 @@ https://learn.microsoft.com/ja-jp/windows/win32/ipc/named-pipe-server-using-comp
 
 　そんな方向けの記事です。
 　また、この技法は、
-
-https://qiita.com/GoldSmith/items/1de197c10c05c054461a
-
+https://zenn.dev/goldsmith/articles/988bbbdbb3e9ce
 の、**メモリープールコンテナ**クラスを使って構築しています。こちらの記事も、よろしければご覧ください。
 # きっかけ
 　[[C++]Pythonに追いつきたい! subprocessの実装](https://qiita.com/GoldSmith/items/aeec5a42fcc76dd6f37d "[C++]Pythonに追いつきたい! subprocessの実装")の記事を書いた後、ずっと気になっていたことがありました。「ここでの**WAIT_IO_COMPLETION**の比較は何か違うよな。」とか、「パイプタイプ**PIPE_TYPE_MESSAGE**はこれで**いいのか**？**でも**、[Microsoftサンプルプログラム](https://learn.microsoft.com/ja-jp/windows/win32/ipc/named-pipe-server-using-completion-routines "Microsoftサンプルプログラム")に、**こう書いてあった**な。」とか、「**パイプバッファーは必要なの？**」など疑問が残っていました。それで、改めて**私自身が、IOCPの処理の流れが理解でき**、パイプ設定を変えるとどうなるか判るプログラムを書いてみる事にしました。
@@ -18,8 +16,9 @@ https://qiita.com/GoldSmith/items/1de197c10c05c054461a
 >･･･非同期IOの完了通知をCreateIOCompletionPort/GetQueuedCompletionStatusで受け取るAPIを指すのが普通です。
 
  「ああっ、そういうことか。」私は、完了ルーチンを書けば「IOCP」だと思っていたのですが、よく見ると、「ポート」要素が見つかりません。
-　結論を書くと、**APCキュー**と、**I/O 完了ポートキュー**の２種類あり、**SleepEx、WaitForSingleObjectEx**等の**Ex系**は、**APCキュー**を使い、**CreateIOCompletionPort**等でハンドルと結びつけるのが**I/O 完了ポートキュー**を使う様です。
+ 　結論を書くと、**APCキュー**と、**I/O 完了ポートキュー**の２種類あり、**SleepEx、WaitForSingleObjectEx**等の**Ex系**は、**APCキュー**を使い、**CreateIOCompletionPort**等でハンドルと結びつけるのが**I/O 完了ポートキュー**を使う様です。
 　と、いう事で記事を書き直すことを決め、今に至っています。ですので、記事の内容は以前と違ったものになります。また、私は、IOCPのプログラムを書いたことは無かったのですが、以前、Microsoftのファイルを扱うサンプルコードに、なんかループがあったなと、心の隅に引っかかっていまして、そのループの意味を探りながらコードを書き直しました。そのサンプルコードはどこで見たのかは、思い出せていません。OVERLAPPED構造体をキャストしていた、SleepExを使っていた、というところも思い出したのですが、その時はその意味を理解できていませんでした。
+　で、書き直しに取っ掛かり始めたところ、流れは、非同期と同じことが判りました。完了コールバック関数もそのまま利用できます。そこでメンバー関数名はそのままにして、その関数の中のコードを
  ```
  bool sampleIOCP::__WriteToCli(const std::string& str) {
  ･･･
@@ -79,12 +78,12 @@ IOCPは、CPUの計算速度に比べて、周辺機器IOがのんびりとし�
 ### この記事で使うソースコードへのリンク
 [GitHubへのリンクはここです。Visual Studio 2022用に設定されたslnファイルもあります。](https://github.com/NewGoldSmith/SubProcess "https://github.com/NewGoldSmith/SubProcess")
 　 **TestProject**をスタートアッププロジェクトに設定し、ソリューションエクスプローラーから**testIOCP.cpp**を選択し、プロパティの設定で**全般->ビルドから除外**項目を**いいえ**に設定し、**testIOCP.cpp以外**は**はい**に設定し、ターゲットCPUをx64に設定し、`F5`を押下すると実行できます。
-![sampleIOCP.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3813628/ca831fa0-33ee-edec-2779-5a8dc9c9eb1f.png)
+![](https://storage.googleapis.com/zenn-user-upload/69e4bebc8b4a-20240706.png)
+
 　ソースコードの中にはデバッグ用のライブラリ、表示と表示の時間のギャップを測るライブラリも含んでいます。本質ではない為、今回は説明を割愛いたします。
  
-:::note info
- 　この記事で紹介しているソースコードは、公開した時点から変更を加えている事があります。そのため、元の記事とは異なる結果を得る場合があります。また、ソースコードを機能別にディレクトリを分ける等の、改善を行う可能性があります。
-:::
+> 　この記事で紹介しているソースコードは、公開した時点から変更を加えている事があります。そのため、元の記事とは異なる結果を得る場合があります。また、ソースコードを機能別にディレクトリを分ける等の、改善を行う可能性があります。
+
 
 ## コードの解説
 　下記にデモコードを記載します。次に実行結果の画面を記載します。その後、番号のコメントが付けられているところの、解説を順次行います。
