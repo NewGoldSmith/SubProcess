@@ -13,10 +13,14 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestProject", "TestProject\TestProject.vcxproj", "{6A44D201-0EF7-4F7D-9E5D-C79A540AFC05}"
 	ProjectSection(ProjectDependencies) = postProject
 		{874A7072-08BD-4136-98E2-FB3E9CFB2C32} = {874A7072-08BD-4136-98E2-FB3E9CFB2C32}
+		{A4A15C6D-4541-4FF2-8BD5-F8ED82CE3520} = {A4A15C6D-4541-4FF2-8BD5-F8ED82CE3520}
 		{FC960445-3EAA-4EFE-9C40-BCAC5E88F83A} = {FC960445-3EAA-4EFE-9C40-BCAC5E88F83A}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CommonLib", "CommonLib\CommonLib.vcxproj", "{874A7072-08BD-4136-98E2-FB3E9CFB2C32}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A4A15C6D-4541-4FF2-8BD5-F8ED82CE3520} = {A4A15C6D-4541-4FF2-8BD5-F8ED82CE3520}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
