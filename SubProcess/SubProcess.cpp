@@ -445,7 +445,7 @@ bool SubProcess::SetUseStdErr(bool is_use)noexcept {
 	if( __numErr )
 		return false;
 	if( IsActive() )
-		debug_fnc::_D("Cannot be set after the subprocess has been launched.");
+		_D("Cannot be set after the subprocess has been launched.");
 		return false;
 	__bfIsUseStdErr = is_use;
 	return true;
