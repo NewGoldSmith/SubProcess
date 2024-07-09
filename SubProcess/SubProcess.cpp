@@ -6,7 +6,7 @@
  * @author Gold Smith
  */
 #include "./SubProcess.h"
-SubProcess::SubProcess()noexcept:
+SubProcess::SubProcess():
 
 	__mlOL(__OLArr, NUM_OVERLAPPED)
 

@@ -17,7 +17,6 @@
 #include "../Debug_fnc/debug_fnc.h"
 
 #pragma comment(lib,  "../Debug_fnc/" STRINGIZE($CONFIGURATION) "/Debug_fnc-" STRINGIZE($CONFIGURATION) ".lib")
-//#pragma comment(linker,  R"(/STACK:300000)")
 
 class  SubProcess {
 	static constexpr DWORD BUFFER_SIZE_OL = 0x400;
@@ -27,7 +26,7 @@ class  SubProcess {
 	static constexpr DWORD CONTINUOUS_TIMEOUT = 0;
 	struct OVERLAPPED_CUSTOM;
 public:
-	SubProcess()noexcept;
+	SubProcess();
 	SubProcess(const SubProcess &) = delete;
 	SubProcess(SubProcess &&) = delete;
 	SubProcess &operator=(const SubProcess &) = delete;
