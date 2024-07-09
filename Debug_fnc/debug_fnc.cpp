@@ -94,6 +94,12 @@ void debug_fnc::print_binary(uint64_t b)
 	std::cout << binary_to_string(b) << std::endl;
 }
 
+std::string debug_fnc::_d(const std::string strFile, const std::string strLine, const std::string str){
+	std::string dstr = strFile + "(" + strLine + "):" + str + "\r\n";
+	::OutputDebugStringA(dstr.c_str());
+	return dstr;
+}
+
 void debug_fnc::dout_binary(uint64_t b)
 {
 	::OutputDebugStringA((binary_to_string(b) + "\r\n").c_str());

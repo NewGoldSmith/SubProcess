@@ -26,6 +26,7 @@ namespace debug_fnc {
 	void dout_binary(uint16_t b);
 	std::string binary_to_string(uint64_t b);
 	void print_binary(uint64_t b);
+	std::string _d(const std::string strFile, const std::string strLine, const std::string str);
 	void dout_binary(uint64_t b);
 	void dout(const std::string& str);
 	std::string GetErrString(DWORD dw);
@@ -40,7 +41,7 @@ namespace debug_fnc {
 #define ENMOut(err_num,mes) ErrOut_(err_num,__FILE__,__LINE__,__FUNCTION__,mes)
 #define _MES(s) {::OutputDebugStringA((std::string(__FILE__ "(" STRINGIZE(__LINE__) "):")+std::string(s)+"\r\n").c_str());}
 #ifdef _DEBUG
-#define _D(s) {::OutputDebugStringA((std::string(__FILE__ "(" STRINGIZE(__LINE__) "):")+std::string(s)+"\r\n").c_str());}
+#define _D(s) _d(__FILE__,STRINGIZE(__LINE__),s);
 #define _DOB(b){::OutputDebugStringA(__FILE__ "(" STRINGIZE(__LINE__)"):" #b "\r\n");debug_fnc::dout_binary(b);}
 #define _DOS(b){::OutputDebugStringA(__FILE__ "(" STRINGIZE(__LINE__)"):" #b "\r\n");debug_fnc::dout_status(b);}
 /// <summary>
