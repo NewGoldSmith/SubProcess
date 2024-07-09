@@ -17,21 +17,22 @@
 #include "../Debug_fnc/debug_fnc.h"
 
 #pragma comment(lib,  "../Debug_fnc/" STRINGIZE($CONFIGURATION) "/Debug_fnc-" STRINGIZE($CONFIGURATION) ".lib")
+//#pragma comment(linker,  R"(/STACK:300000)")
 
 class  SubProcess {
-	static constexpr int BUFFER_SIZE = 0x400;
-	static constexpr int PIPE_BUFFER_SCALE = 1;
-	static constexpr int NUM_OVERLAPPED = 0x8;
-	static constexpr int DEFAULT_TIMEOUT = 1000;
-	static constexpr int CONTINUOUS_TIMEOUT = 1;
+	static constexpr DWORD BUFFER_SIZE_OL = 0x400;
+	static constexpr DWORD BUFER_SIZE_PIPE = 0x00;
+	static constexpr DWORD NUM_OVERLAPPED = 0x1000;
+	static constexpr DWORD DEFAULT_TIMEOUT = 100;
+	static constexpr DWORD CONTINUOUS_TIMEOUT = 0;
 	struct OVERLAPPED_CUSTOM;
 public:
 	SubProcess()noexcept;
-	SubProcess(SubProcess &) = delete;
+	SubProcess(const SubProcess &) = delete;
 	SubProcess(SubProcess &&) = delete;
-	SubProcess &operator=(SubProcess &) = delete;
+	SubProcess &operator=(const SubProcess &) = delete;
 	SubProcess &operator=(SubProcess &&) = delete;
-	SubProcess &operator()(SubProcess &) = delete;
+	SubProcess &operator()(const SubProcess &) = delete;
 	SubProcess &operator()(SubProcess &&) = delete;
 	~SubProcess() {};
 	void ResetFlag()noexcept;
@@ -59,33 +60,32 @@ public:
 	friend std::ostream &operator<<(std::ostream &os, SubProcess &sp);
 	SubProcess &Await(DWORD numAwaitTime)noexcept;
 	SubProcess &CErr()noexcept;
-	SubProcess &Raw()noexcept;
 private:
 	bool __ClosePipes();
 	bool __FlushWrite();
 	bool __CancelIo();
 	bool __WriteToCli(const std::string &str);
-	bool __ReadFromCli();
-	bool __ReadFromCliErr();
-	bool __StrongReadFromCli(DWORD timeout= DEFAULT_TIMEOUT);
+	bool __ReadFromChild();
+	bool __ReadFromChildErr();
+	bool __TryReadOperation(DWORD timer);
 	std::wstring __AtoW(const std::string &str)const;
 	std::wstring __CreateNamedPipeStringW();
+	enum Dir : DWORD{COUT,CERROR};
 	struct OVERLAPPED_CUSTOM {
 		::OVERLAPPED ol{};
 		SubProcess *self{};
-		char buffer[BUFFER_SIZE]{};
+		Dir dir{Dir::COUT};
+		char buffer[BUFFER_SIZE_OL]{};
 	};
 
 	OVERLAPPED_CUSTOM __OLArr[NUM_OVERLAPPED];
 	MemoryLoan< OVERLAPPED_CUSTOM> __mlOL;
 	bool __bfIsUseStdErr{};
 	bool __bfIsErrOut{};
-	bool __bfIsRaw{};
 	::HANDLE __hSevR{}, __hSevW{}, __hCliR{}, __hCliW{}, __hErrW{}, __hErrR{};
 	DWORD __numErr{ 0 };
 	DWORD __numAwait{ 0 };
 	DWORD __numTimeOut{ DEFAULT_TIMEOUT };
-	DWORD __numContinuousTimeOut{ CONTINUOUS_TIMEOUT };
 	::PROCESS_INFORMATION __PI{};
 	::LPOVERLAPPED_COMPLETION_ROUTINE const __pfReadFromChildCompleted;
 	::LPOVERLAPPED_COMPLETION_ROUTINE const __pfWriteToChildCompleted;

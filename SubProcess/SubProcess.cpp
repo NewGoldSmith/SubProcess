@@ -19,23 +19,18 @@ SubProcess::SubProcess()noexcept:
 			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped)
 			, [](OVERLAPPED_CUSTOM *p)->void {p->self->__mlOL.Return(p); } };
 
-		if (errorCode != ERROR_SUCCESS) {
-			if (errorCode != ERROR_BROKEN_PIPE) {
-				debug_fnc::ENOut(errorCode);
-				pOL->self->__numErr = errorCode;
-			}
+		if( errorCode != ERROR_SUCCESS ){
+			debug_fnc::ENOut(errorCode);
+			pOL->self->__numErr = errorCode;
 			return;
 		}
 
-		if (pOL->ol.hEvent) {
-			if (pOL->self->__bfIsUseStdErr)
-				pOL->self->__FromChildBufErr.write(pOL->buffer, bytesTransfered);
-			else
-				pOL->self->__FromChildBuf.write(pOL->buffer, bytesTransfered);
-			pOL->self->__ReadFromCliErr();
-		} else {
+		if( pOL->dir == Dir::COUT ){
 			pOL->self->__FromChildBuf.write(pOL->buffer, bytesTransfered);
-			pOL->self->__ReadFromCli();
+			pOL->self->__ReadFromChild();
+		} else{
+			pOL->self->__FromChildBufErr.write(pOL->buffer, bytesTransfered);
+			pOL->self->__ReadFromChildErr();
 		}
 	} }
 
@@ -71,110 +66,92 @@ bool SubProcess::Popen(const std::string &strCommand) {
 
 	// パイプ作成
 	{
-		::SECURITY_ATTRIBUTES saAttr = {};
-		saAttr.nLength = sizeof(::SECURITY_ATTRIBUTES);
-		saAttr.bInheritHandle = FALSE;
+		SECURITY_ATTRIBUTES saAttr = {};
+		saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+		saAttr.bInheritHandle = TRUE;
 		saAttr.lpSecurityDescriptor = NULL;
 
 		{
-			saAttr.bInheritHandle = FALSE;
 			std::wstring wstr = __CreateNamedPipeStringW();
 			if ((__hSevW = ::CreateNamedPipeW(
 				wstr.c_str()
 				, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
-				, PIPE_TYPE_MESSAGE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
+				, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
 				, PIPE_UNLIMITED_INSTANCES
-				, BUFFER_SIZE * PIPE_BUFFER_SCALE
-				, BUFFER_SIZE * PIPE_BUFFER_SCALE
+				, BUFER_SIZE_PIPE
+				, BUFER_SIZE_PIPE
 				, 0
 				, NULL)) == INVALID_HANDLE_VALUE) {
-				DWORD dw = ::GetLastError();
-				debug_fnc::ENOut(dw);
-				__numErr = dw;
+				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
-			saAttr.bInheritHandle = TRUE;
 			if ((__hCliR = ::CreateFileW(
 				wstr.c_str(),   // pipe name 
-				PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,  // read and write access 
+				PIPE_ACCESS_DUPLEX,  // read and write access 
 				FILE_SHARE_WRITE | FILE_SHARE_READ,              // no sharing 
 				&saAttr,           // default security attributes
 				OPEN_EXISTING,  // opens existing pipe 
 				FILE_ATTRIBUTE_NORMAL,              // default attributes 
 				NULL// no template file 
 			)) == INVALID_HANDLE_VALUE) {
-				DWORD dw = ::GetLastError();
-				debug_fnc::ENOut(dw);
-				__numErr = dw;
+				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
 		}
 		{
-			saAttr.bInheritHandle = FALSE;
 			std::wstring wstr = __CreateNamedPipeStringW();
 			if ((__hSevR = ::CreateNamedPipeW(
 				wstr.c_str()
 				, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
-				, PIPE_TYPE_MESSAGE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
+				, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
 				, PIPE_UNLIMITED_INSTANCES
-				, BUFFER_SIZE * PIPE_BUFFER_SCALE
-				, BUFFER_SIZE * PIPE_BUFFER_SCALE
+				, BUFER_SIZE_PIPE
+				, BUFER_SIZE_PIPE
 				, 0
 				, NULL)) == INVALID_HANDLE_VALUE) {
-				DWORD dw = ::GetLastError();
-				debug_fnc::ENOut(dw);
-				__numErr = dw;
+				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
-			saAttr.bInheritHandle = TRUE;
 			if ((__hCliW = ::CreateFileW(
-				wstr.c_str(),   // pipe name 
-				PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,  // read and write access 
-				FILE_SHARE_WRITE | FILE_SHARE_READ,              // no sharing 
-				&saAttr,           // default security attributes
-				OPEN_EXISTING,  // opens existing pipe 
-				FILE_ATTRIBUTE_NORMAL,              // default attributes 
-				NULL// no template file 
+				wstr.c_str(), 
+				PIPE_ACCESS_DUPLEX,
+				FILE_SHARE_WRITE | FILE_SHARE_READ, 
+				&saAttr, 
+				OPEN_EXISTING,
+				FILE_ATTRIBUTE_NORMAL,  
+				NULL 
 			)) == INVALID_HANDLE_VALUE) {
-				DWORD dw = ::GetLastError();
-				debug_fnc::ENOut(dw);
-				__numErr = dw;
+				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
 		}
 		{
-			saAttr.bInheritHandle = FALSE;
 			std::wstring wstr = __CreateNamedPipeStringW();
-			if ((__hErrR = ::CreateNamedPipeW(
+			if ((__hErrW = ::CreateNamedPipeW(
 				wstr.c_str()
 				, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
-				, PIPE_TYPE_MESSAGE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
+				, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
 				, PIPE_UNLIMITED_INSTANCES
-				, BUFFER_SIZE * PIPE_BUFFER_SCALE
-				, BUFFER_SIZE * PIPE_BUFFER_SCALE
+				, BUFER_SIZE_PIPE
+				, BUFER_SIZE_PIPE
 				, 0
 				, NULL)) == INVALID_HANDLE_VALUE) {
-				DWORD dw = ::GetLastError();
-				debug_fnc::ENOut(dw);
-				__numErr = dw;
+				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
-			saAttr.bInheritHandle = TRUE;
-			if ((__hErrW = ::CreateFileW(
+			if ((__hErrR = ::CreateFileW(
 				wstr.c_str(),   // pipe name 
-				PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,  // read and write access 
+				PIPE_ACCESS_DUPLEX,  // read and write access 
 				FILE_SHARE_WRITE | FILE_SHARE_READ,              // no sharing 
 				&saAttr,           // default security attributes
 				OPEN_EXISTING,  // opens existing pipe 
 				FILE_ATTRIBUTE_NORMAL,              // default attributes 
 				NULL// no template file 
 			)) == INVALID_HANDLE_VALUE) {
-				DWORD dw = ::GetLastError();
-				debug_fnc::ENOut(dw);
-				__numErr = dw;
+				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
 		}
@@ -183,19 +160,18 @@ bool SubProcess::Popen(const std::string &strCommand) {
 	// スタートアップインフォ設定
 	::STARTUPINFO siStartInfo = {};
 	siStartInfo.cb = sizeof(::STARTUPINFO);
-	siStartInfo.hStdError = __hErrW;
+	siStartInfo.hStdError = __bfIsUseStdErr ?__hErrW:__hCliW;
 	siStartInfo.hStdOutput = __hCliW;
 	siStartInfo.hStdInput = __hCliR;
 	siStartInfo.wShowWindow = SW_HIDE;
 	siStartInfo.dwFlags = STARTF_USESTDHANDLES;
 
 	std::wstring wstrPath(MAX_PATH, L'\0');
-	DWORD dw;
-	if (!(dw = ::GetCurrentDirectoryW(MAX_PATH, wstrPath.data()))) {
-		debug_fnc::ENOut(dw);
+	wstrPath.resize(::GetCurrentDirectoryW(MAX_PATH, wstrPath.data()));
+	if( !wstrPath.size() ){
+		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return false;
 	}
-	wstrPath.resize(dw);
 
 	std::wstring wcmdline(__AtoW(strCommand));
 
@@ -204,15 +180,13 @@ bool SubProcess::Popen(const std::string &strCommand) {
 							 NULL,          // process security attributes 
 							 NULL,          // primary thread security attributes 
 							 TRUE,          // handles are inherited 
-							 PROCESS_QUERY_INFORMATION,             // creation flags 
+							 PROCESS_QUERY_INFORMATION,// creation flags 
 							 NULL,          // use parent's environment 
-							 (wstrPath.empty() ? NULL : wstrPath.c_str()),// use parent's current directory 
+							 wstrPath.empty() ? NULL : wstrPath.c_str(),// use parent's current directory 
 							 &siStartInfo,  // STARTUPINFO pointer 
 							 &__PI))  // receives PROCESS_INFORMATION
 	{
-		DWORD dw = ::GetLastError();
-		debug_fnc::ENOut(dw);
-		__numErr = dw;
+		debug_fnc::ENOut(__numErr = ::GetLastError());
 		__ClosePipes();
 		return FALSE;
 	}
@@ -224,16 +198,19 @@ bool SubProcess::Popen(const std::string &strCommand) {
 	::CloseHandle(__hErrW);
 	__hErrW = NULL;
 
-	if (!__ReadFromCli())
+	if (!__ReadFromChild())
 		return false;
-	if (!__ReadFromCliErr())
-		return false;
+	if( __bfIsUseStdErr )
+		if( !__ReadFromChildErr() )
+			return false;
 	return TRUE;
 }
 
 bool SubProcess::Pclose() {
 	__CancelIo();
+	__TryReadOperation(DEFAULT_TIMEOUT);
 	__ClosePipes();
+	::WaitForSingleObject(__PI.hProcess, INFINITE);
 	::CloseHandle(__PI.hProcess);
 	::CloseHandle(__PI.hThread);
 	__PI.hProcess = NULL;
@@ -284,17 +261,6 @@ SubProcess &SubProcess::operator<<(const std::string &strIn) {
 	if (__numErr)
 		return *this;
 
-	if (__bfIsRaw) {
-		__bfIsRaw = false;
-		__ToChildBuf << strIn;
-		if (!__WriteToCli(__ToChildBuf.str().c_str())) {
-			return *this;
-		}
-		__ToChildBuf.str("");
-		__ToChildBuf.clear();
-		return *this;
-	}
-
 	std::string str = strIn;
 	size_t start = 0;
 	size_t end = str.find('\n');
@@ -317,7 +283,7 @@ SubProcess &SubProcess::operator<<(const std::string &strIn) {
 	}
 
 	__ToChildBuf << str;
-	::SleepEx(__numContinuousTimeOut, TRUE);
+	__TryReadOperation(CONTINUOUS_TIMEOUT);
 	return *this;
 }
 
@@ -369,7 +335,7 @@ SubProcess &SubProcess::operator<<(std::ios_base &(*const manipulator)(std::ios_
 	if (__numErr)
 		return *this;
 	__ToChildBuf << manipulator;
-	::SleepEx(__numContinuousTimeOut, TRUE);
+	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
 	return *this;
 }
 
@@ -399,39 +365,35 @@ SubProcess &SubProcess::ClearBuffer() {
 	return *this;
 }
 
-SubProcess &SubProcess::operator>>(std::string &str) {
+SubProcess& SubProcess::operator>>(std::string& str){
 	str.clear();
 
 	if (__numErr)
 		return *this;
 
 	DWORD timeout;
-	if (__numAwait) {
+	if( __numAwait ){
 		timeout = __numAwait;
 		__numAwait = 0;
-	} else {
+	} else{
 		timeout = __numTimeOut;
 	}
 
-	if (__bfIsErrOut) {
-		__bfIsErrOut = false;
-		if (__FromChildBufErr.str().empty()) {
-			if (!__StrongReadFromCli(timeout)) {
-				return *this;
-			}
+	if( __TryReadOperation(timeout) ){
+		if( __bfIsErrOut ){
+			__bfIsErrOut = 0;
+			str = __FromChildBufErr.str();
+			__FromChildBufErr.str("");
+			__FromChildBufErr.clear();
+			return *this;
+		} else{
+			str = __FromChildBuf.str();
+			__FromChildBuf.str("");
+			__FromChildBuf.clear();
+			return *this;
 		}
-		str = move(__FromChildBufErr.str());
-		__FromChildBufErr.str("");
-		__FromChildBufErr.clear();
-	} else {
-		if (__FromChildBuf.str().empty()) {
-			if (!__StrongReadFromCli(timeout)) {
-				return *this;
-			}
-		}
-		str = move(__FromChildBuf.str());
-		__FromChildBuf.str("");
-		__FromChildBuf.clear();
+	} else{
+		__numErr = WAIT_TIMEOUT;
 	}
 	return *this;
 }
@@ -455,11 +417,6 @@ SubProcess &SubProcess::CErr()noexcept {
 	return *this;
 }
 
-SubProcess &SubProcess::Raw() noexcept {
-	__bfIsRaw = true;
-	return *this;
-}
-
 bool SubProcess::IsActive(){
 	if (!__PI.hProcess)
 		return false;
@@ -470,28 +427,28 @@ bool SubProcess::IsActive(){
 		__numErr = dw2;
 		return false;
 	}
-	return dw == STILL_ACTIVE ? true : false;
+	return dw == STILL_ACTIVE;
 }
 
 bool SubProcess::IsReadable(){
-	::SleepEx(__numContinuousTimeOut, TRUE);
+
+	__TryReadOperation(CONTINUOUS_TIMEOUT);
 	if (__bfIsErrOut) {
 		__bfIsErrOut = false;
-		if (__FromChildBufErr.str().size()) {
-			return true;
-		}
+		return __FromChildBufErr.str().size();
 	} else {
-		if (__FromChildBuf.str().size()) {
-			return true;
-		}
+		return __FromChildBuf.str().size();
 	}
-	return false;
 }
 
 bool SubProcess::SetUseStdErr(bool is_use)noexcept {
-	bool tmp = __bfIsUseStdErr;
+	if( __numErr )
+		return false;
+	if( IsActive() )
+		debug_fnc::_D("Cannot be set after the subprocess has been launched.");
+		return false;
 	__bfIsUseStdErr = is_use;
-	return tmp;
+	return true;
 }
 
 inline std::wstring SubProcess::__AtoW(const std::string &str)const{
@@ -517,82 +474,66 @@ inline std::wstring SubProcess::__AtoW(const std::string &str)const{
 	return wstr;
 }
 
-bool SubProcess::__ReadFromCli() {
-	OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = {});
+bool SubProcess::__ReadFromChild() {
+	if( __numErr )
+		return false;
+	OVERLAPPED_CUSTOM* pOL = &(*(__mlOL.Lend()) = {});
 	pOL->self = this;
-	DWORD dw;
-	if (!::ReadFileEx(
+	pOL->dir = Dir::COUT;
+	if( !::ReadFileEx(
 		__hSevR
 		, &(pOL->buffer)
-		, sizeof(OVERLAPPED_CUSTOM::buffer)
-		, (::OVERLAPPED *)pOL
-		, __pfReadFromChildCompleted)) {
-		dw = ::GetLastError();
-		if (dw == WAIT_IO_COMPLETION) {
-			::SleepEx(__numContinuousTimeOut, TRUE);
-			return TRUE;
-		} else {
-			__numErr = dw;
-			debug_fnc::ENOut(dw);
-			return FALSE;
-		}
+		, sizeof(pOL->buffer)
+		, (OVERLAPPED*)pOL
+		, __pfReadFromChildCompleted) ){
+		debug_fnc::ENOut(__numErr = ::GetLastError());
+		__mlOL.Return(pOL);
+		return false;
 	}
+	__TryReadOperation(CONTINUOUS_TIMEOUT);
 	return true;
 }
 
-bool SubProcess::__ReadFromCliErr() {
-	OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = { .ol{.hEvent = __hErrW} });
-
+bool SubProcess::__ReadFromChildErr() {
+	if( __numErr )
+		return false;
+	OVERLAPPED_CUSTOM* pOL = &(*(__mlOL.Lend()) = {});
 	pOL->self = this;
-	DWORD dw;
-	if (!::ReadFileEx(
+	pOL->dir = Dir::CERROR;
+	if( !::ReadFileEx(
 		__hErrR
 		, &(pOL->buffer)
-		, sizeof(OVERLAPPED_CUSTOM::buffer)
-		, (OVERLAPPED *)pOL
-		, __pfReadFromChildCompleted)) {
-		dw = ::GetLastError();
-		if (dw == WAIT_IO_COMPLETION) {
-			::SleepEx(__numContinuousTimeOut, TRUE);
-			return TRUE;
-		} else {
-			__numErr = dw;
-			debug_fnc::ENOut(dw);
-			return FALSE;
-		}
+		, sizeof(pOL->buffer)
+		, (OVERLAPPED*)pOL
+		, __pfReadFromChildCompleted) ){
+		debug_fnc::ENOut(__numErr = ::GetLastError());
+		__mlOL.Return(pOL);
+		return false;
 	}
+	__TryReadOperation(CONTINUOUS_TIMEOUT);
 	return true;
 }
 
-bool SubProcess::__StrongReadFromCli(DWORD timeout) {
-	DWORD dw;
-	if (!(dw = ::SleepEx(timeout, TRUE))) {
-		// タイムアウトの場合
-		__numErr = WAIT_TIMEOUT;
-		return false;
-	} else if (dw == WAIT_IO_COMPLETION) {
-		for (;;) {
-			if (DWORD dw2 = ::SleepEx(__numContinuousTimeOut, TRUE)) {
-				if (dw2 == WAIT_IO_COMPLETION) {
-					continue;
-				} else {
-					// WAIT_IO_COMPLETION以外のコードの場合
-					debug_fnc::ENOut(dw2);
-					__numErr = dw2;
-					return false;
-				}
-			} else {
-				// ２回目以降のタイムアウトの場合
-				return true;
+bool SubProcess::__TryReadOperation(DWORD timer){
+	for( ;;){
+
+		switch( ::SleepEx(timer, TRUE)){
+		case WAIT_IO_COMPLETION:
+		{
+			continue;
+		}
+		case 0:
+		{
+			if( __bfIsErrOut ){
+				return __FromChildBufErr.str().size();
+			} else{
+				return __FromChildBuf.str().size();
 			}
 		}
-	} else {
-		// 1回目のWAIT_IO_COMPLETION以外のコードの場合
-		__numErr = dw;
-		debug_fnc::ENOut(dw);
-		return false;
+		default:
+			return false;
+		}
 	}
-	return true;
 }
 
 std::wstring SubProcess::__CreateNamedPipeStringW() {
@@ -607,7 +548,7 @@ std::wstring SubProcess::__CreateNamedPipeStringW() {
 		_MES("StringFromGUID2 Err.");
 		throw std::runtime_error("StringFromGUID2 Err.");
 	}
-	wstr = L"\\\\.\\pipe\\" + __AtoW(__FILE__) + wstr + L"\\";
+	wstr = std::wstring(L"\\\\.\\pipe\\") + __AtoW(__FILE__) + wstr.c_str() + L"\\";
 	return wstr;
 }
 
@@ -628,25 +569,11 @@ bool SubProcess::__ClosePipes() {
 }
 
 bool SubProcess::__CancelIo() {
-	if (!::CancelIoEx(__hSevR, NULL)) {
-		DWORD dw = ::GetLastError();
-		debug_fnc::ENOut(dw);
-		__numErr = dw;
-	}
-	::SleepEx(__numContinuousTimeOut, TRUE);
-	if (! ::CancelIoEx(__hSevW, NULL)) {
-		DWORD dw = ::GetLastError();
-		debug_fnc::ENOut(dw);
-		__numErr = dw;
-	}
-	::SleepEx(__numContinuousTimeOut, TRUE);
-	if (! ::CancelIoEx(__hErrR, NULL)) {
-		DWORD dw = ::GetLastError();
-		debug_fnc::ENOut(dw);
-		__numErr = dw;
-	}
-	::SleepEx(__numContinuousTimeOut, TRUE);
-
+	::CancelIoEx(__hCliR, NULL);
+	::CancelIoEx(__hCliW, NULL);
+	::CancelIoEx(__hSevR, NULL);
+	::CancelIoEx(__hErrR, NULL);
+	::CancelIoEx(__hSevW, NULL);
 	return true;
 }
 
@@ -661,33 +588,29 @@ DWORD SubProcess::SetTimeOut(DWORD uiTime)noexcept {
 }
 
 bool SubProcess::__WriteToCli(const std::string &str) {
-	size_t pos = 0;
-	while (pos < str.size()) {
-		size_t len = std::min<size_t>(str.size() - pos, static_cast<size_t>(BUFFER_SIZE));
-		std::string chunk = str.substr(pos, len);
-		pos += len;
+	// バッファのサイズをチャンクサイズとする
+	const std::size_t chunkSize = sizeof(OVERLAPPED_CUSTOM::buffer);
+	std::size_t position = 0;
 
-		OVERLAPPED_CUSTOM *pOL = &(*(__mlOL.Lend()) = {});
-		std::copy(chunk.begin(), chunk.end(), pOL->buffer);
+	for( ; position < str.size();){
+		OVERLAPPED_CUSTOM* pOL = &(*(__mlOL.Lend()) = {});
+		std::size_t size = std::min<size_t>(chunkSize, str.size() - position);
+		std::copy(str.begin() + position, str.begin() + position + size, pOL->buffer);
 		pOL->self = this;
-		DWORD dw;
-		if (!::WriteFileEx(
+		if( !WriteFileEx(
 			__hSevW
 			, &(pOL->buffer)
-			, (DWORD)chunk.size()
-			, (::OVERLAPPED *)pOL
-			, __pfWriteToChildCompleted)) {
-			dw = ::GetLastError();
-			if (dw == WAIT_IO_COMPLETION) {
-				::SleepEx(__numContinuousTimeOut, TRUE);
-				continue;
-			} else {
-				__numErr = dw;
-				debug_fnc::ENOut(dw);
-				return FALSE;
-			}
+			, (DWORD)size
+			, (OVERLAPPED*)pOL
+			, __pfWriteToChildCompleted) ){
+			debug_fnc::ENOut(__numErr = GetLastError());
+			__mlOL.Return(pOL);
+			return FALSE;
 		}
-		::SleepEx(__numContinuousTimeOut, TRUE);
+
+		__TryReadOperation(CONTINUOUS_TIMEOUT);
+
+		position += size;
 	}
 	return true;
 }
