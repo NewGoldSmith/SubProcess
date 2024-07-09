@@ -25,6 +25,6 @@ int main() {
 		s.OrCout.Push("Main:total elapsed time. " + ss.str() );
 	}
 	_CrtDumpMemoryLeaks();
-	(void)_getch();
+//	(void)_getch();
 	return 0;
 }

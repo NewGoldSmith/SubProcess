@@ -1,4 +1,5 @@
 #pragma once
+#include <crtdbg.h>
 #include "../SubProcess/SubProcess.h"
 #include "../CommonLib/defSTRINGIZE.h"
 

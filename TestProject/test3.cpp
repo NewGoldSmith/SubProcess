@@ -6,7 +6,7 @@ int main() {
 	{
 		string str;										// １
 		SubProcess sp;
-		if (!sp.Popen(R"(cmd.exe /c RemoteCmd.bat)"))
+		if (!sp.Popen(R"(cmd.exe)"))
 			return 1;
 
 		sp.SleepEx(2000);								// ２
