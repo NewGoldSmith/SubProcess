@@ -41,7 +41,7 @@ namespace debug_fnc {
 #define ENMOut(err_num,mes) ErrOut_(err_num,__FILE__,__LINE__,__FUNCTION__,mes)
 #define _MES(s) {::OutputDebugStringA((std::string(__FILE__ "(" STRINGIZE(__LINE__) "):")+std::string(s)+"\r\n").c_str());}
 #ifdef _DEBUG
-#define _D(s) _d(__FILE__,STRINGIZE(__LINE__),s);
+#define _D(s) debug_fnc::_d(__FILE__,STRINGIZE(__LINE__),s)
 #define _DOB(b){::OutputDebugStringA(__FILE__ "(" STRINGIZE(__LINE__)"):" #b "\r\n");debug_fnc::dout_binary(b);}
 #define _DOS(b){::OutputDebugStringA(__FILE__ "(" STRINGIZE(__LINE__)"):" #b "\r\n");debug_fnc::dout_status(b);}
 /// <summary>
