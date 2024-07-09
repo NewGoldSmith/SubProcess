@@ -162,9 +162,9 @@ OrderedCOut::OrderedCOut() :
 		for (;;) {
 			DWORD dw = ::WaitForSingleObjectEx(pThis->hEventThread.get(), INFINITE, TRUE);
 			if (dw == WAIT_IO_COMPLETION) {
-				debug_fnc::_D("APC executed.");
+				_D("APC executed.");
 			} else if (dw == WAIT_OBJECT_0) {
-				debug_fnc::_D("Event signaled.");
+				_D("Event signaled.");
 				return 0;
 			} else {
 				debug_fnc::ENOut((pThis->__numErr = ::GetLastError()));
