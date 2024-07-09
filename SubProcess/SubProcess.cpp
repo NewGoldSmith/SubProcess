@@ -236,7 +236,6 @@ bool SubProcess::TerminateProcess(DWORD dw) {
 }
 
 bool SubProcess::WaitForTermination(DWORD time){
-	DWORD dw;
 	if( !((__numErr = ::WaitForSingleObject(__PI.hProcess, time)) == WAIT_OBJECT_0) ){
 		if( __numErr == WAIT_FAILED ){
 			debug_fnc::ENOut(__numErr = ::GetLastError());
