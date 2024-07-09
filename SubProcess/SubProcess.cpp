@@ -221,9 +221,7 @@ bool SubProcess::Pclose() {
 DWORD SubProcess::GetExitCodeSubProcess() {
 	DWORD dw;
 	if (!::GetExitCodeProcess(__PI.hProcess, &dw)) {
-		DWORD dw2 = ::GetLastError();
-		debug_fnc::ENOut(dw2);
-		__numErr = dw2;
+		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return 0;
 	}
 	return dw;
@@ -231,22 +229,20 @@ DWORD SubProcess::GetExitCodeSubProcess() {
 
 bool SubProcess::TerminateProcess(DWORD dw) {
 	if (!::TerminateProcess(__PI.hProcess, dw)) {
-		__numErr = ::GetLastError();
-		debug_fnc::ENOut(__numErr);
+		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return false;
 	}
 	return true;
 }
 
-bool SubProcess::WaitForTermination(DWORD time) {
+bool SubProcess::WaitForTermination(DWORD time){
 	DWORD dw;
-	if (!((dw = ::WaitForSingleObject(__PI.hProcess, time))== WAIT_OBJECT_0)){
-		if (dw == WAIT_TIMEOUT) {
-			__numErr = WAIT_TIMEOUT;
+	if( !((__numErr = ::WaitForSingleObject(__PI.hProcess, time)) == WAIT_OBJECT_0) ){
+		if( __numErr == WAIT_FAILED ){
+			debug_fnc::ENOut(__numErr = ::GetLastError());
 			return false;
-		} else {
-			__numErr = dw;
-			debug_fnc::ENOut(dw);
+		} else{
+			debug_fnc::ENOut(__numErr);
 			return false;
 		}
 	}
