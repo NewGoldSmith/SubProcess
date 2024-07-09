@@ -2,31 +2,31 @@
 #include "test2.h"
 using namespace std;
 
-int main() {
+int main(){
 	{
 		string str;										// １
 		SubProcess sp;
-		if (!sp.Popen(R"(cmd.exe)"))
+		if( !sp.Popen(R"(cmd.exe /c RemoteCmd.bat)") )
 			return 1;
 
 		sp.SleepEx(2000);								// ２
-		
-		for (; sp.IsActive();) {					// ３
-			if (sp.IsReadable()) {
-				if (!(sp >> cout))
+
+		for( ; sp.IsActive();){					// ３
+			if( sp.IsReadable() ){
+				if( !(sp >> cout) )
 					return 1;
 				else
 					sp.SleepEx(10);
-					continue;
+				continue;
 
-			} else {
-				if (!(sp << cin))
+			} else{
+				if( !(sp << cin) )
 					return 1;
 				sp.SleepEx(10);
 			}
 		}
 
-		if (!(sp.WaitForTermination(INFINITE)))// ４
+		if( !(sp.WaitForTermination(INFINITE)) )// ４
 			return 1;
 
 		DWORD dw = sp.GetExitCodeSubProcess();	// ５
