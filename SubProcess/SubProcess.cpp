@@ -417,9 +417,7 @@ bool SubProcess::IsActive(){
 		return false;
 	DWORD dw;
 	if (!::GetExitCodeProcess(__PI.hProcess,&dw)) {
-		DWORD dw2 = ::GetLastError();
-		debug_fnc::ENOut(dw2);
-		__numErr = dw2;
+		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return false;
 	}
 	return dw == STILL_ACTIVE;
@@ -453,15 +451,14 @@ inline std::wstring SubProcess::__AtoW(const std::string &str)const{
 	std::wstring wstr(MAX_PATH, L'\0');
 	//ANSIからユニコードへ変換
 	int size(0);
-	if (!(size = ::MultiByteToWideChar(
+	if( !(size = ::MultiByteToWideChar(
 		CP_ACP
 		, 0
 		, str.data()
 		, static_cast<int>(str.size())
 		, wstr.data()
-		, static_cast<int>(wstr.size())))) {
-		DWORD dw = ::GetLastError();
-		debug_fnc::ENOut(dw);
+		, static_cast<int>(wstr.size()))) ){
+		debug_fnc::ENOut(::GetLastError());
 		wstr.resize(0);
 		return wstr;
 	}
