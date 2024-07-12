@@ -1,10 +1,3 @@
-/**
- * @file TestPrime.cpp
- * @brief APC—áŽÀ‘•
- * SPDX-License-Identifier: MIT<br>
- * @date 2024<br>
- * @author Gold Smith
- */
 #include <Windows.h>
 #include <iostream>
 #include <sstream>
@@ -22,7 +15,7 @@ bool isPrime(int num){ // 2
 		return true;
 	if( num % 2 == 0 )
 		return false;
-	for( int i = 3, const int sqnum = sqrt(num); i <= sqnum; i += 2 ){
+	for( int i = 3; i <= sqrt(num); i += 2 ){
 		if( num % i == 0 )
 			return false;
 	}
@@ -30,12 +23,12 @@ bool isPrime(int num){ // 2
 }
 
 void GetPrimeFrom1To10000(ULONG_PTR p){ // 3
-   psh_t* psh = reinterpret_cast<psh_t*>(p);
-   for( int num(1); num <= 10000; ++num ){
-      if( isPrime(num) ){
-         *(psh->first) << num << " ";
-      }
-   }
+	psh_t* psh = reinterpret_cast<psh_t*>(p);
+	for( int num(1); num <= 10000; ++num ){
+		if( isPrime(num) ){
+			*(psh->first) << num << " ";
+		}
+	}
 	if( psh->second )
 		SetEvent(psh->second); // 4
 }
@@ -114,7 +107,7 @@ int main(){
 		psh_t pairssev{ &ss2,hEvPrime.get() };
 		QueueUserAPC((PAPCFUNC)GetPrimeFrom10001To20000, hThread.get(), (ULONG_PTR)&pairssev); // 12
 		GetPrimeFrom1To10000((ULONG_PTR)&pairss); // 13
-		WaitForSingleObject(hEvPrime.get(),INFINITE); // 14
+		WaitForSingleObject(hEvPrime.get(), INFINITE); // 14
 
 		stringstream ss3, ss4;
 		pairss.first = &ss3;
@@ -131,7 +124,7 @@ int main(){
 
 		SetEvent(hEvThread.get()); // 19
 		WaitForSingleObject(hThread.get(), INFINITE); // 20
-   }
-   _CrtDumpMemoryLeaks();
-   return 0;
+	}
+	_CrtDumpMemoryLeaks();
+	return 0;
 }
