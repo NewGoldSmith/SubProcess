@@ -33,7 +33,19 @@
     <ClCompile Include="TestUnOrderedCout.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="testMulti.cpp">
+    <ClCompile Include="testSubProcess4.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="testCOut1.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="testCOut2.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="TestPrime.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="TestPrime2.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -55,5 +67,6 @@
     <None Include="RemoteCmd.bat" />
     <None Include="Zennssh接続.md" />
     <None Include="ssh接続.md" />
+    <None Include="testPrime.md" />
   </ItemGroup>
 </Project>
