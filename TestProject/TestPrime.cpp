@@ -1,3 +1,10 @@
+/**
+ * @file TestPrime.cpp
+ * @brief APC—áŽÀ‘•
+ * SPDX-License-Identifier: MIT<br>
+ * @date 2024<br>
+ * @author Gold Smith
+ */
 #include <Windows.h>
 #include <iostream>
 #include <sstream>
@@ -9,17 +16,17 @@ using namespace std;
 using  psh_t = pair<stringstream*, HANDLE>;// 1
 
 bool isPrime(int num){ // 2
-   if( num <= 1 )
-      return false;
-   if( num == 2 )
-      return true;
-   if( num % 2 == 0 )
-      return false;
-   for( int i = 3; i <= sqrt(num); i += 2 ){
-      if( num % i == 0 )
-         return false;
-   }
-   return true;
+	if( num <= 1 )
+		return false;
+	if( num == 2 )
+		return true;
+	if( num % 2 == 0 )
+		return false;
+	for( int i = 3, const int sqnum = sqrt(num); i <= sqnum; i += 2 ){
+		if( num % i == 0 )
+			return false;
+	}
+	return true;
 }
 
 void GetPrimeFrom1To10000(ULONG_PTR p){ // 3
