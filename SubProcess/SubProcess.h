@@ -17,11 +17,11 @@
 #include "../Debug_fnc/debug_fnc.h"
 
 #pragma comment(lib,  "../Debug_fnc/" STRINGIZE($CONFIGURATION) "/Debug_fnc-" STRINGIZE($CONFIGURATION) ".lib")
-#pragma comment(linker,"/STACK:1000000000")
+
 class  SubProcess {
 	static constexpr DWORD BUFFER_SIZE_OL = 0x400;
 	static constexpr DWORD BUFER_SIZE_PIPE = 0x00;
-	static constexpr DWORD NUM_OVERLAPPED = 0x100;
+	static constexpr DWORD NUM_OVERLAPPED = 0x200;
 	static constexpr DWORD DEFAULT_TIMEOUT = 100;
 	static constexpr DWORD CONTINUOUS_TIMEOUT = 0;
 	struct OVERLAPPED_CUSTOM;

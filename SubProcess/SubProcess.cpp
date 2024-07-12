@@ -13,15 +13,15 @@ SubProcess::SubProcess():
 	, __pfReadFromChildCompleted{ [](
 		DWORD errorCode
 		, DWORD bytesTransfered
-		, OVERLAPPED *overlapped) {
+		, OVERLAPPED* overlapped){
 
-		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM *)> pOL = {
-			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped)
-			, [](OVERLAPPED_CUSTOM *p)->void {p->self->__mlOL.Return(p); } };
+		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM*)> pOL = {
+			reinterpret_cast<OVERLAPPED_CUSTOM*>(overlapped)
+			, [](OVERLAPPED_CUSTOM* p)->void{p->self->__mlOL.Return(p); } };
 
 		if( errorCode != ERROR_SUCCESS ){
 			debug_fnc::ENOut(errorCode);
-			pOL->self->__numErr = errorCode;
+		//	pOL->self->__numErr = errorCode;
 			return;
 		}
 
@@ -37,29 +37,28 @@ SubProcess::SubProcess():
 	, __pfWriteToChildCompleted{ [](
 		DWORD errorCode
 		, DWORD bytesTransfered
-		, OVERLAPPED *overlapped) {
+		, OVERLAPPED* overlapped){
 
-		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM *)> pOL = {
-			reinterpret_cast<OVERLAPPED_CUSTOM *>(overlapped)
-			, [](OVERLAPPED_CUSTOM *p)->void {p->self->__mlOL.Return(p); } };
+		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM*)> pOL = {
+			reinterpret_cast<OVERLAPPED_CUSTOM*>(overlapped)
+			, [](OVERLAPPED_CUSTOM* p)->void{p->self->__mlOL.Return(p); } };
 
-		if (errorCode != ERROR_SUCCESS) {
+		if( errorCode != ERROR_SUCCESS ){
 			debug_fnc::ENOut(errorCode);
 			pOL->self->__numErr = errorCode;
 			return;
 		}
-	} }
-{
-	
+	} }{
+
 };
 
-bool SubProcess::Popen(const std::string &strCommand) {
+bool SubProcess::Popen(const std::string& strCommand){
 	// エラーがあったか確認。
-	if (__numErr)
+	if( __numErr )
 		return false;
 
 	// 実行中でないか確認。
-	if (IsActive()) {
+	if( IsActive() ){
 		__numErr = STILL_ACTIVE;
 		return false;
 	}
@@ -73,7 +72,7 @@ bool SubProcess::Popen(const std::string &strCommand) {
 
 		{
 			std::wstring wstr = __CreateNamedPipeStringW();
-			if ((__hSevW = ::CreateNamedPipeW(
+			if( (__hSevW = ::CreateNamedPipeW(
 				wstr.c_str()
 				, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
 				, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
@@ -81,12 +80,12 @@ bool SubProcess::Popen(const std::string &strCommand) {
 				, BUFER_SIZE_PIPE
 				, BUFER_SIZE_PIPE
 				, 0
-				, NULL)) == INVALID_HANDLE_VALUE) {
+				, NULL)) == INVALID_HANDLE_VALUE ){
 				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
-			if ((__hCliR = ::CreateFileW(
+			if( (__hCliR = ::CreateFileW(
 				wstr.c_str(),   // pipe name 
 				PIPE_ACCESS_DUPLEX,  // read and write access 
 				FILE_SHARE_WRITE | FILE_SHARE_READ,              // no sharing 
@@ -94,14 +93,14 @@ bool SubProcess::Popen(const std::string &strCommand) {
 				OPEN_EXISTING,  // opens existing pipe 
 				FILE_ATTRIBUTE_NORMAL,              // default attributes 
 				NULL// no template file 
-			)) == INVALID_HANDLE_VALUE) {
+			)) == INVALID_HANDLE_VALUE ){
 				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
 		}
 		{
 			std::wstring wstr = __CreateNamedPipeStringW();
-			if ((__hSevR = ::CreateNamedPipeW(
+			if( (__hSevR = ::CreateNamedPipeW(
 				wstr.c_str()
 				, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
 				, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
@@ -109,27 +108,27 @@ bool SubProcess::Popen(const std::string &strCommand) {
 				, BUFER_SIZE_PIPE
 				, BUFER_SIZE_PIPE
 				, 0
-				, NULL)) == INVALID_HANDLE_VALUE) {
+				, NULL)) == INVALID_HANDLE_VALUE ){
 				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
-			if ((__hCliW = ::CreateFileW(
-				wstr.c_str(), 
+			if( (__hCliW = ::CreateFileW(
+				wstr.c_str(),
 				PIPE_ACCESS_DUPLEX,
-				FILE_SHARE_WRITE | FILE_SHARE_READ, 
-				&saAttr, 
+				FILE_SHARE_WRITE | FILE_SHARE_READ,
+				&saAttr,
 				OPEN_EXISTING,
-				FILE_ATTRIBUTE_NORMAL,  
-				NULL 
-			)) == INVALID_HANDLE_VALUE) {
+				FILE_ATTRIBUTE_NORMAL,
+				NULL
+			)) == INVALID_HANDLE_VALUE ){
 				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
 		}
 		{
 			std::wstring wstr = __CreateNamedPipeStringW();
-			if ((__hErrW = ::CreateNamedPipeW(
+			if( (__hErrW = ::CreateNamedPipeW(
 				wstr.c_str()
 				, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
 				, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
@@ -137,12 +136,12 @@ bool SubProcess::Popen(const std::string &strCommand) {
 				, BUFER_SIZE_PIPE
 				, BUFER_SIZE_PIPE
 				, 0
-				, NULL)) == INVALID_HANDLE_VALUE) {
+				, NULL)) == INVALID_HANDLE_VALUE ){
 				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
-			if ((__hErrR = ::CreateFileW(
+			if( (__hErrR = ::CreateFileW(
 				wstr.c_str(),   // pipe name 
 				PIPE_ACCESS_DUPLEX,  // read and write access 
 				FILE_SHARE_WRITE | FILE_SHARE_READ,              // no sharing 
@@ -150,7 +149,7 @@ bool SubProcess::Popen(const std::string &strCommand) {
 				OPEN_EXISTING,  // opens existing pipe 
 				FILE_ATTRIBUTE_NORMAL,              // default attributes 
 				NULL// no template file 
-			)) == INVALID_HANDLE_VALUE) {
+			)) == INVALID_HANDLE_VALUE ){
 				debug_fnc::ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
@@ -160,7 +159,7 @@ bool SubProcess::Popen(const std::string &strCommand) {
 	// スタートアップインフォ設定
 	::STARTUPINFO siStartInfo = {};
 	siStartInfo.cb = sizeof(::STARTUPINFO);
-	siStartInfo.hStdError = __bfIsUseStdErr ?__hErrW:__hCliW;
+	siStartInfo.hStdError = __bfIsUseStdErr ? __hErrW : __hCliW;
 	siStartInfo.hStdOutput = __hCliW;
 	siStartInfo.hStdInput = __hCliR;
 	siStartInfo.wShowWindow = SW_HIDE;
@@ -175,16 +174,16 @@ bool SubProcess::Popen(const std::string &strCommand) {
 
 	std::wstring wcmdline(__AtoW(strCommand));
 
-	if (!::CreateProcessW(NULL,
-							 wcmdline.data(),     // command line 
-							 NULL,          // process security attributes 
-							 NULL,          // primary thread security attributes 
-							 TRUE,          // handles are inherited 
-							 PROCESS_QUERY_INFORMATION,// creation flags 
-							 NULL,          // use parent's environment 
-							 wstrPath.empty() ? NULL : wstrPath.c_str(),// use parent's current directory 
-							 &siStartInfo,  // STARTUPINFO pointer 
-							 &__PI))  // receives PROCESS_INFORMATION
+	if( !::CreateProcessW(NULL,
+		wcmdline.data(),     // command line 
+		NULL,          // process security attributes 
+		NULL,          // primary thread security attributes 
+		TRUE,          // handles are inherited 
+		PROCESS_QUERY_INFORMATION,// creation flags 
+		NULL,          // use parent's environment 
+		wstrPath.empty() ? NULL : wstrPath.c_str(),// use parent's current directory 
+		&siStartInfo,  // STARTUPINFO pointer 
+		&__PI) )  // receives PROCESS_INFORMATION
 	{
 		debug_fnc::ENOut(__numErr = ::GetLastError());
 		__ClosePipes();
@@ -198,7 +197,7 @@ bool SubProcess::Popen(const std::string &strCommand) {
 	::CloseHandle(__hErrW);
 	__hErrW = NULL;
 
-	if (!__ReadFromChild())
+	if( !__ReadFromChild() )
 		return false;
 	if( __bfIsUseStdErr )
 		if( !__ReadFromChildErr() )
@@ -206,7 +205,7 @@ bool SubProcess::Popen(const std::string &strCommand) {
 	return TRUE;
 }
 
-bool SubProcess::Pclose() {
+bool SubProcess::Pclose(){
 	__CancelIo();
 	__TryReadOperation(DEFAULT_TIMEOUT);
 	__ClosePipes();
@@ -218,17 +217,17 @@ bool SubProcess::Pclose() {
 	return true;
 }
 
-DWORD SubProcess::GetExitCodeSubProcess() {
+DWORD SubProcess::GetExitCodeSubProcess(){
 	DWORD dw;
-	if (!::GetExitCodeProcess(__PI.hProcess, &dw)) {
+	if( !::GetExitCodeProcess(__PI.hProcess, &dw) ){
 		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return 0;
 	}
 	return dw;
 }
 
-bool SubProcess::TerminateProcess(DWORD dw) {
-	if (!::TerminateProcess(__PI.hProcess, dw)) {
+bool SubProcess::TerminateProcess(DWORD dw){
+	if( !::TerminateProcess(__PI.hProcess, dw) ){
 		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return false;
 	}
@@ -248,20 +247,20 @@ bool SubProcess::WaitForTermination(DWORD time){
 	return true;
 }
 
-DWORD SubProcess::GetLastError()const noexcept {
+DWORD SubProcess::GetLastError()const noexcept{
 	return __numErr;
 }
 
-SubProcess &SubProcess::operator<<(const std::string &strIn) {
-	if (__numErr)
+SubProcess& SubProcess::operator<<(const std::string& strIn){
+	if( __numErr )
 		return *this;
 
 	std::string str = strIn;
 	size_t start = 0;
 	size_t end = str.find('\n');
-	while (end != std::string::npos) {
-		__ToChildBuf<< str.substr(start, end - start + 1);  // 改行を含む
-		if (!__WriteToCli(__ToChildBuf.str().c_str())) {
+	while( end != std::string::npos ){
+		__ToChildBuf << str.substr(start, end - start + 1);  // 改行を含む
+		if( !__WriteToCli(__ToChildBuf.str().c_str()) ){
 			return *this;
 		}
 		__ToChildBuf.str("");
@@ -271,9 +270,9 @@ SubProcess &SubProcess::operator<<(const std::string &strIn) {
 	}
 
 	// 最後の文字が'\n'でない場合、その部分をstrに戻す
-	if (!str.empty() && str.back() != '\n') {
+	if( !str.empty() && str.back() != '\n' ){
 		str = str.substr(start);
-	} else {
+	} else{
 		str.clear();
 	}
 
@@ -282,8 +281,8 @@ SubProcess &SubProcess::operator<<(const std::string &strIn) {
 	return *this;
 }
 
-SubProcess &SubProcess::operator<<(std::istream &is) {
-	if (__numErr)
+SubProcess& SubProcess::operator<<(std::istream& is){
+	if( __numErr )
 		return *this;
 	std::string line;
 	std::getline(is, line);
@@ -291,20 +290,20 @@ SubProcess &SubProcess::operator<<(std::istream &is) {
 	return *this;
 }
 
-SubProcess &SubProcess::operator<<(std::ostream &(*const manipulator)(std::ostream &)) {
-	if (__numErr)
+SubProcess& SubProcess::operator<<(std::ostream& (* const manipulator)(std::ostream&)){
+	if( __numErr )
 		return *this;
-	if (manipulator == static_cast<std::ostream & (*)(std::ostream &)>(std::endl)) {
+	if( manipulator == static_cast<std::ostream & (*)(std::ostream&)>(std::endl) ){
 		// When std::endl is received, send the contents of the buffer to the client.
 		__ToChildBuf << std::endl;
-		if (__WriteToCli(__ToChildBuf.str())) {
+		if( __WriteToCli(__ToChildBuf.str()) ){
 			__ToChildBuf.str("");  // Clear the buffer.
 			__ToChildBuf.clear();
 			return *this;
-		} else {
+		} else{
 			return *this;
 		}
-	} else {
+	} else{
 		// Otherwise, apply the manipulator to the buffer.
 		__ToChildBuf << manipulator;
 	}
@@ -312,12 +311,12 @@ SubProcess &SubProcess::operator<<(std::ostream &(*const manipulator)(std::ostre
 }
 
 
-bool SubProcess::__FlushWrite() {
-	if (__numErr)
-		return false;
+bool SubProcess::__FlushWrite(){
+	//if( __numErr )
+	//	return false;
 
-	if (__ToChildBuf.str().size()) {
-		if (!__WriteToCli(__ToChildBuf.str())) {
+	if( __ToChildBuf.str().size() ){
+		if( !__WriteToCli(__ToChildBuf.str()) ){
 			return false;
 		};
 		__ToChildBuf.str("");  // Clear the buffer.
@@ -326,30 +325,30 @@ bool SubProcess::__FlushWrite() {
 	return true;
 }
 
-SubProcess &SubProcess::operator<<(std::ios_base &(*const manipulator)(std::ios_base &)) {
-	if (__numErr)
+SubProcess& SubProcess::operator<<(std::ios_base& (* const manipulator)(std::ios_base&)){
+	if( __numErr )
 		return *this;
 	__ToChildBuf << manipulator;
-	::SleepEx(CONTINUOUS_TIMEOUT, TRUE);
+	__TryReadOperation(CONTINUOUS_TIMEOUT);
 	return *this;
 }
 
-SubProcess &SubProcess::SleepEx(DWORD num) {
-	if (__numErr)
+SubProcess& SubProcess::SleepEx(DWORD num){
+	if( __numErr )
 		return *this;
 	::SleepEx(num, TRUE);
 	return *this;
 }
 
-SubProcess &SubProcess::Flush() {
-	if (__numErr)
+SubProcess& SubProcess::Flush(){
+	if( __numErr )
 		return *this;
 	__FlushWrite();
 	return *this;
 }
 
-SubProcess &SubProcess::ClearBuffer() {
-	if (__numErr)
+SubProcess& SubProcess::ClearBuffer(){
+	if( __numErr )
 		return *this;
 	__ToChildBuf.str("");
 	__ToChildBuf.clear();
@@ -363,7 +362,7 @@ SubProcess &SubProcess::ClearBuffer() {
 SubProcess& SubProcess::operator>>(std::string& str){
 	str.clear();
 
-	if (__numErr)
+	if( __numErr )
 		return *this;
 
 	DWORD timeout;
@@ -393,8 +392,8 @@ SubProcess& SubProcess::operator>>(std::string& str){
 	return *this;
 }
 
-SubProcess &SubProcess::operator>>(std::ostream &os) {
-	if (__numErr)
+SubProcess& SubProcess::operator>>(std::ostream& os){
+	if( __numErr )
 		return *this;
 	std::string str;
 	operator >> (str);
@@ -402,21 +401,21 @@ SubProcess &SubProcess::operator>>(std::ostream &os) {
 	return *this;
 }
 
-SubProcess &SubProcess::Await(DWORD numAwaitTime)noexcept {
+SubProcess& SubProcess::Await(DWORD numAwaitTime)noexcept{
 	__numAwait = numAwaitTime;
 	return *this;
 }
 
-SubProcess &SubProcess::CErr()noexcept {
+SubProcess& SubProcess::CErr()noexcept{
 	__bfIsErrOut = true;
 	return *this;
 }
 
 bool SubProcess::IsActive(){
-	if (!__PI.hProcess)
+	if( !__PI.hProcess )
 		return false;
 	DWORD dw;
-	if (!::GetExitCodeProcess(__PI.hProcess,&dw)) {
+	if( !::GetExitCodeProcess(__PI.hProcess, &dw) ){
 		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return false;
 	}
@@ -426,26 +425,26 @@ bool SubProcess::IsActive(){
 bool SubProcess::IsReadable(){
 
 	__TryReadOperation(CONTINUOUS_TIMEOUT);
-	if (__bfIsErrOut) {
+	if( __bfIsErrOut ){
 		__bfIsErrOut = false;
 		return __FromChildBufErr.str().size();
-	} else {
+	} else{
 		return __FromChildBuf.str().size();
 	}
 }
 
-bool SubProcess::SetUseStdErr(bool is_use)noexcept {
+bool SubProcess::SetUseStdErr(bool is_use)noexcept{
 	if( __numErr )
 		return false;
 	if( IsActive() )
 		_D("Cannot be set after the subprocess has been launched.");
-		return false;
+	return false;
 	__bfIsUseStdErr = is_use;
 	return true;
 }
 
-inline std::wstring SubProcess::__AtoW(const std::string &str)const{
-	if (str.empty()) {
+inline std::wstring SubProcess::__AtoW(const std::string& str)const{
+	if( str.empty() ){
 		return std::wstring();
 	}
 	std::wstring wstr(MAX_PATH, L'\0');
@@ -466,9 +465,9 @@ inline std::wstring SubProcess::__AtoW(const std::string &str)const{
 	return wstr;
 }
 
-bool SubProcess::__ReadFromChild() {
-	if( __numErr )
-		return false;
+bool SubProcess::__ReadFromChild(){
+	//if( __numErr )
+	//	return false;
 	OVERLAPPED_CUSTOM* pOL = &(*(__mlOL.Lend()) = {});
 	pOL->self = this;
 	pOL->dir = Dir::COUT;
@@ -486,9 +485,9 @@ bool SubProcess::__ReadFromChild() {
 	return true;
 }
 
-bool SubProcess::__ReadFromChildErr() {
-	if( __numErr )
-		return false;
+bool SubProcess::__ReadFromChildErr(){
+	//if( __numErr )
+	//	return false;
 	OVERLAPPED_CUSTOM* pOL = &(*(__mlOL.Lend()) = {});
 	pOL->self = this;
 	pOL->dir = Dir::CERROR;
@@ -509,7 +508,7 @@ bool SubProcess::__ReadFromChildErr() {
 bool SubProcess::__TryReadOperation(DWORD timer){
 	for( ;;){
 
-		switch( ::SleepEx(timer, TRUE)){
+		switch( ::SleepEx(timer, TRUE) ){
 		case WAIT_IO_COMPLETION:
 		{
 			continue;
@@ -528,15 +527,15 @@ bool SubProcess::__TryReadOperation(DWORD timer){
 	}
 }
 
-std::wstring SubProcess::__CreateNamedPipeStringW() {
+std::wstring SubProcess::__CreateNamedPipeStringW(){
 	GUID guid;
 	std::wstring wstr(0x100, L'\0');
-	if (CoCreateGuid(&guid) != S_OK) {
+	if( CoCreateGuid(&guid) != S_OK ){
 		_MES("CoCreateGuid Err.");
 		throw std::runtime_error("CoCreateGuid Err.");
 	};
 	wstr.resize(StringFromGUID2(guid, wstr.data(), (int)wstr.capacity()));
-	if (!wstr.size()) {
+	if( !wstr.size() ){
 		_MES("StringFromGUID2 Err.");
 		throw std::runtime_error("StringFromGUID2 Err.");
 	}
@@ -544,7 +543,7 @@ std::wstring SubProcess::__CreateNamedPipeStringW() {
 	return wstr;
 }
 
-bool SubProcess::__ClosePipes() {
+bool SubProcess::__ClosePipes(){
 	::CloseHandle(__hCliR);
 	__hCliR = NULL;
 	::CloseHandle(__hCliW);
@@ -560,7 +559,7 @@ bool SubProcess::__ClosePipes() {
 	return true;
 }
 
-bool SubProcess::__CancelIo() {
+bool SubProcess::__CancelIo(){
 	::CancelIoEx(__hCliR, NULL);
 	::CancelIoEx(__hCliW, NULL);
 	::CancelIoEx(__hSevR, NULL);
@@ -569,17 +568,17 @@ bool SubProcess::__CancelIo() {
 	return true;
 }
 
-void SubProcess::ResetFlag()noexcept {
+void SubProcess::ResetFlag()noexcept{
 	__numErr = 0;
 }
 
-DWORD SubProcess::SetTimeOut(DWORD uiTime)noexcept {
+DWORD SubProcess::SetTimeOut(DWORD uiTime)noexcept{
 	DWORD tmp = __numTimeOut;
 	__numTimeOut = uiTime;
 	return tmp;
 }
 
-bool SubProcess::__WriteToCli(const std::string &str) {
+bool SubProcess::__WriteToCli(const std::string& str){
 	// バッファのサイズをチャンクサイズとする
 	const std::size_t chunkSize = sizeof(OVERLAPPED_CUSTOM::buffer);
 	std::size_t position = 0;
@@ -607,8 +606,8 @@ bool SubProcess::__WriteToCli(const std::string &str) {
 	return true;
 }
 
-std::ostream &operator<<(std::ostream &os, SubProcess &sp) {
-	if (sp.__numErr)
+std::ostream& operator<<(std::ostream& os, SubProcess& sp){
+	if( sp.__numErr )
 		return os;
 	std::string str;
 	sp >> str;
