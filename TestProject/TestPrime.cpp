@@ -1,3 +1,10 @@
+/**
+ * @file TestPrime.cpp
+ * @brief APCを使ったサンプルコード実装
+ * SPDX-License-Identifier: MIT<br>
+ * @date 2024<br>
+ * @author Gold Smith
+ */
 #include <Windows.h>
 #include <iostream>
 #include <sstream>
@@ -15,7 +22,7 @@ bool isPrime(int num){ // 2
 		return true;
 	if( num % 2 == 0 )
 		return false;
-	for( int i = 3, const sqnum = (int)sqrt(num); i <= sqnum; i += 2 ){
+	for( int i = 3, sqnum = (int)sqrt(num); i <= sqnum; i += 2 ){
 		if( num % i == 0 )
 			return false;
 	}
