@@ -100,17 +100,17 @@ using namespace std;
 using  psh_t = pair<stringstream*, HANDLE>;// 1
 
 bool isPrime(int num){ // 2
-   if( num <= 1 )
-      return false;
-   if( num == 2 )
-      return true;
-   if( num % 2 == 0 )
-      return false;
-   for( int i = 3; i <= sqrt(num); i += 2 ){
-      if( num % i == 0 )
-         return false;
-   }
-   return true;
+	if( num <= 1 )
+		return false;
+	if( num == 2 )
+		return true;
+	if( num % 2 == 0 )
+		return false;
+	for( int i = 3, const int sqnum = sqrt(num); i <= sqnum; i += 2 ){
+		if( num % i == 0 )
+			return false;
+	}
+	return true;
 }
 
 void GetPrimeFrom1To10000(ULONG_PTR p){ // 3
@@ -202,19 +202,19 @@ int main(){
 
 		stringstream ss3, ss4;
 		pairss.first = &ss3;
-		ResetEvent(hEvPrime.get());
+		ResetEvent(hEvPrime.get()); // 15
 		pairssev.first = &ss4;
-		QueueUserAPC((PAPCFUNC)GetPrimeFrom30001To40000, hThread.get(), (ULONG_PTR)&pairssev); // 15
-		GetPrimeFrom20001To30000((ULONG_PTR)&pairss); // 16
-		WaitForSingleObject(hEvPrime.get(), INFINITE); // 17
+		QueueUserAPC((PAPCFUNC)GetPrimeFrom30001To40000, hThread.get(), (ULONG_PTR)&pairssev); // 16
+		GetPrimeFrom20001To30000((ULONG_PTR)&pairss); // 17
+		WaitForSingleObject(hEvPrime.get(), INFINITE); // 18
 
 		cout << ss1.str() << endl;
 		cout << ss2.str() << endl;
 		cout << ss3.str() << endl;
 		cout << ss4.str() << endl;
 
-		SetEvent(hEvThread.get()); // 18
-		WaitForSingleObject(hThread.get(), INFINITE); // 19
+		SetEvent(hEvThread.get()); // 19
+		WaitForSingleObject(hThread.get(), INFINITE); // 20
    }
    _CrtDumpMemoryLeaks();
    return 0;
