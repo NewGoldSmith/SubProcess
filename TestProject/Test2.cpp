@@ -45,7 +45,7 @@ int main() {
       }
       if (!(sp << endl))
          return 1;
-      if (sp.IsReadable()) {
+      for( ; sp.IsReadable(100); ){
          if (!(sp >> cout))
             return 1;
       }
@@ -64,7 +64,7 @@ int main() {
 
       if (!(sp << "exit" << endl))					// ８
          return 1;
-      if(sp.IsReadable()) {
+      if(sp.IsReadable(100)) {
          sp >> cout;
       }
 
