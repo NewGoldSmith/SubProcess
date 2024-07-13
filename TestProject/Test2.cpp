@@ -6,7 +6,7 @@ int main() {
    {
 		string str;											
 		SubProcess sp;
-		sp.SetUseStdErr(true);  // １
+//		sp.SetUseStdErr(true);  // １
 		if( !sp.Popen(R"(cmd.exe)") ) // ２
 			return 1;
 		if( !(sp.Await(1000) >> cout) ) // ３
