@@ -64,12 +64,9 @@ int main() {
 
       if (!(sp << "exit" << endl))					// ８
          return 1;
-      for (; sp.IsReadable();) {
-         if(sp.Await(1000) >> cout)
-            return 1;
+      if(sp.IsReadable()) {
+         sp >> cout;
       }
-
-      SleepEx(0, NULL);
 
       if (!(sp.WaitForTermination(INFINITE)))	// ９
          return 1;
