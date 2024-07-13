@@ -20,9 +20,7 @@ SubProcess::SubProcess():
 			, [](OVERLAPPED_CUSTOM* p)->void{p->self->__mlOL.Return(p); } };
 
 		if( errorCode != ERROR_SUCCESS ){
-			debug_fnc::ENOut(errorCode);
-		//	pOL->self->__numErr = errorCode;
-			return;
+			debug_fnc::ENOut(pOL->self->__numErr = errorCode);
 		}
 
 		if( pOL->dir == Dir::COUT ){
@@ -44,9 +42,7 @@ SubProcess::SubProcess():
 			, [](OVERLAPPED_CUSTOM* p)->void{p->self->__mlOL.Return(p); } };
 
 		if( errorCode != ERROR_SUCCESS ){
-			debug_fnc::ENOut(errorCode);
-			pOL->self->__numErr = errorCode;
-			return;
+			debug_fnc::ENOut(pOL->self->__numErr = errorCode);
 		}
 	} }{
 
@@ -310,21 +306,6 @@ SubProcess& SubProcess::operator<<(std::ostream& (* const manipulator)(std::ostr
 	return *this;
 }
 
-
-bool SubProcess::__FlushWrite(){
-	//if( __numErr )
-	//	return false;
-
-	if( __ToChildBuf.str().size() ){
-		if( !__WriteToCli(__ToChildBuf.str()) ){
-			return false;
-		};
-		__ToChildBuf.str("");  // Clear the buffer.
-	}
-	__ToChildBuf.clear();
-	return true;
-}
-
 SubProcess& SubProcess::operator<<(std::ios_base& (* const manipulator)(std::ios_base&)){
 	if( __numErr )
 		return *this;
@@ -343,7 +324,10 @@ SubProcess& SubProcess::SleepEx(DWORD num){
 SubProcess& SubProcess::Flush(){
 	if( __numErr )
 		return *this;
-	__FlushWrite();
+	if( !FlushFileBuffers(__hSevW) ){
+		debug_fnc::ENOut(__numErr = ::GetLastError());
+		return *this;
+	}
 	return *this;
 }
 
@@ -361,9 +345,6 @@ SubProcess& SubProcess::ClearBuffer(){
 
 SubProcess& SubProcess::operator>>(std::string& str){
 	str.clear();
-
-	if( __numErr )
-		return *this;
 
 	DWORD timeout;
 	if( __numAwait ){
@@ -393,8 +374,6 @@ SubProcess& SubProcess::operator>>(std::string& str){
 }
 
 SubProcess& SubProcess::operator>>(std::ostream& os){
-	if( __numErr )
-		return *this;
 	std::string str;
 	operator >> (str);
 	os << str;

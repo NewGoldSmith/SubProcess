@@ -17,6 +17,8 @@ https://qiita.com/GoldSmith/items/1de197c10c05c054461a
 ### この記事で使うソースコードへのリンク
 [GitHubへのリンクはここです。Visual Studio 2022用に設定されたslnファイルもあります。](https://github.com/NewGoldSmith/SubProcess "https://github.com/NewGoldSmith/SubProcess")
 　TestProjectをスタートアッププロジェクトに設定し、ソリューションエクスプローラーから**test2.cpp**を選択し、プロパティの設定で**全般->ビルドから除外**項目を**いいえ**に設定し、**test2.cpp以外**は**はい**に設定し、ターゲットCPUをx64に設定し、`F5`を押下すると実行できます。
+![image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3813628/bef6dcc1-1103-13ce-1aa3-0747aaa3432a.png)
+ 
 　ソースコードの中にはデバッグ用のライブラリも含んでいます。本質ではない為、今回は説明を割愛いたします。
 
 :::note info
@@ -463,15 +465,9 @@ Please enter the code page number.
 　次のストリームへの出力オペレーションの、出力バッファをstd::cerr用のバッファに切り替えます。この、設定は保持されませんので、１回ごとに指定しなければなりません。
 #### 戻り値
 　SubProcessオブジェクト。
-### SubProcess &Raw()noexcept
-#### 説明
-　次の、入力ストリームオペレーションは、RAWデータとして扱い、その後、Flush相当のオペレーションを自動で行います。通常、`"Hello\n World"`の様なstringの途中に改行文字を入れると、`"Hello\n"`で一旦書き込みをします。`" World"`の部分はバッファに残り、書き込みをしません。Raw()は流し込まれたデータをバイナリデータとして扱い、`"Hello\n World"`をそのまま書き込みます。
+### ~~SubProcess &Raw()noexcept~~ 
+> この関数はバイナリ送信用に追加されましたが、SubProcess事態をバイトストリームに変更しましたので削除しました。バイナリ転送には、Flushを使用してください。
 
-:::note info
-　データサイズが内部バッファより大きい場合、データの先頭から、内部バッファのサイズまでを、データの塊として切り出します。それを一旦書き込みをして、また、切り出し・書き込みを順次行っていきます。
-:::
-#### 戻り値
-　SubProcessオブジェクト。
 # 終わりに
 　「**[C++]Pythonに追いつきたい! subprocessの実装**」の解説は以上となります。この記事が皆様の閃きや発想のきっかけになりましたら幸いです。
 　また、ご意見、ご感想、ご質問など、お待ちしております。

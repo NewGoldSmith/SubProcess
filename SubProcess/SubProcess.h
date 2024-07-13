@@ -61,7 +61,6 @@ public:
 	SubProcess &CErr()noexcept;
 private:
 	bool __ClosePipes();
-	bool __FlushWrite();
 	bool __CancelIo();
 	bool __WriteToCli(const std::string &str);
 	bool __ReadFromChild();
