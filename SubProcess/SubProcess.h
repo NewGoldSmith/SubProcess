@@ -45,7 +45,7 @@ public:
 	DWORD GetLastError()const noexcept;
 	explicit operator bool() const noexcept { return !__numErr; }
 	bool IsActive();
-	bool IsReadable();
+	bool IsReadable(DWORD time = 0);
 	bool SetUseStdErr(bool is_use)noexcept;
 	SubProcess &operator<<(const std::string &str);
 	SubProcess &operator<< (std::istream &is);

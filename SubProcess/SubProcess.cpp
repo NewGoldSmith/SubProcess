@@ -401,9 +401,17 @@ bool SubProcess::IsActive(){
 	return dw == STILL_ACTIVE;
 }
 
-bool SubProcess::IsReadable(){
+bool SubProcess::IsReadable(DWORD time){
 
-	__TryReadOperation(CONTINUOUS_TIMEOUT);
+	DWORD timeout;
+	if( __numAwait ){
+		timeout = __numAwait;
+		__numAwait = 0;
+	} else{
+		timeout = time;
+	}
+
+	__TryReadOperation(timeout);
 	if( __bfIsErrOut ){
 		__bfIsErrOut = false;
 		return __FromChildBufErr.str().size();
