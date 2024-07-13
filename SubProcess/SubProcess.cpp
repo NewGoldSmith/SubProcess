@@ -274,7 +274,6 @@ SubProcess& SubProcess::operator<<(const std::string& strIn){
 	}
 
 	__ToChildBuf << str;
-	__TryReadOperation(CONTINUOUS_TIMEOUT);
 	return *this;
 }
 
@@ -325,6 +324,13 @@ SubProcess& SubProcess::SleepEx(DWORD num){
 SubProcess& SubProcess::Flush(){
 	if( __numErr )
 		return *this;
+	if( __ToChildBuf.str().size() ){
+		if( !__WriteToCli(__ToChildBuf.str()) ){
+			return *this;
+		}
+		__ToChildBuf.str("");
+		__ToChildBuf.clear();
+	}
 	if( !FlushFileBuffers(__hSevW) ){
 		debug_fnc::ENOut(__numErr = ::GetLastError());
 		return *this;
