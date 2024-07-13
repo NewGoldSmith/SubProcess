@@ -124,7 +124,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 		}
 		{
 			std::wstring wstr = __CreateNamedPipeStringW();
-			if( (__hErrW = ::CreateNamedPipeW(
+			if( (__hErrR = ::CreateNamedPipeW(
 				wstr.c_str()
 				, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
 				, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS
@@ -137,7 +137,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 				return FALSE;
 			}
 
-			if( (__hErrR = ::CreateFileW(
+			if( (__hErrW = ::CreateFileW(
 				wstr.c_str(),   // pipe name 
 				PIPE_ACCESS_DUPLEX,  // read and write access 
 				FILE_SHARE_WRITE | FILE_SHARE_READ,              // no sharing 
@@ -198,6 +198,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 	if( __bfIsUseStdErr )
 		if( !__ReadFromChildErr() )
 			return false;
+
 	return TRUE;
 }
 
@@ -407,7 +408,7 @@ bool SubProcess::IsReadable(DWORD time){
 	if( __numAwait ){
 		timeout = __numAwait;
 		__numAwait = 0;
-	} else{
+	} else {
 		timeout = time;
 	}
 
@@ -423,9 +424,11 @@ bool SubProcess::IsReadable(DWORD time){
 bool SubProcess::SetUseStdErr(bool is_use)noexcept{
 	if( __numErr )
 		return false;
-	if( IsActive() )
+	if( IsActive() ){
 		_D("Cannot be set after the subprocess has been launched.");
-	return false;
+		__numErr = STILL_ACTIVE;
+		return false;
+	}
 	__bfIsUseStdErr = is_use;
 	return true;
 }
