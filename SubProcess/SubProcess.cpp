@@ -1,6 +1,6 @@
 ﻿/**
  * @file SubProcess.h
- * @brief SubProcess作成クラス実装
+ * @brief SubProcess2作成クラス実装
  * SPDX-License-Identifier: MIT<br>
  * @date 2024<br>
  * @author Gold Smith
@@ -8,33 +8,37 @@
 #include "./SubProcess.h"
 SubProcess::SubProcess():
 
-	__mlOL(__OLArr, NUM_OVERLAPPED)
+	__pOL{ [](){OVERLAPPED_CUSTOM* p =
+	new OVERLAPPED_CUSTOM[UNIT_SIZE_OVERLAPPED]; return p; }()
+	, [](OVERLAPPED_CUSTOM* p){delete[]p; } }
+
+	, __mlOL(__pOL.get(), UNIT_SIZE_OVERLAPPED)
 
 	, __pfReadFromChildCompleted{ [](
 		DWORD errorCode
-		, DWORD bytesTransfered
+		, DWORD bytesTransferred
 		, OVERLAPPED* overlapped){
 
-		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM*)> pOL = {
-			reinterpret_cast<OVERLAPPED_CUSTOM*>(overlapped)
-			, [](OVERLAPPED_CUSTOM* p)->void{p->self->__mlOL.Return(p); } };
+		OVERLAPPED_CUSTOM* pOL = reinterpret_cast<OVERLAPPED_CUSTOM*>(overlapped);
 
 		if( errorCode != ERROR_SUCCESS ){
 			debug_fnc::ENOut(pOL->self->__numErr = errorCode);
 		}
 
+		pOL->size = bytesTransferred;
+
 		if( pOL->dir == Dir::COUT ){
-			pOL->self->__FromChildBuf.write(pOL->buffer, bytesTransfered);
+			pOL->self->__FromChildQue.push(pOL);
 			pOL->self->__ReadFromChild();
 		} else{
-			pOL->self->__FromChildBufErr.write(pOL->buffer, bytesTransfered);
+			pOL->self->__FromChildErrQue.push(pOL);
 			pOL->self->__ReadFromChildErr();
 		}
 	} }
 
 	, __pfWriteToChildCompleted{ [](
 		DWORD errorCode
-		, DWORD bytesTransfered
+		, DWORD bytesTransferred
 		, OVERLAPPED* overlapped){
 
 		std::unique_ptr<OVERLAPPED_CUSTOM ,void(*)(OVERLAPPED_CUSTOM*)> pOL = {
@@ -211,6 +215,7 @@ bool SubProcess::Pclose(){
 	::CloseHandle(__PI.hThread);
 	__PI.hProcess = NULL;
 	__PI.hThread = NULL;
+	ClearBuffer();
 	return true;
 }
 
@@ -339,14 +344,10 @@ SubProcess& SubProcess::Flush(){
 }
 
 SubProcess& SubProcess::ClearBuffer(){
-	if( __numErr )
-		return *this;
 	__ToChildBuf.str("");
 	__ToChildBuf.clear();
-	__FromChildBuf.str("");
-	__FromChildBuf.clear();
-	__FromChildBufErr.str("");
-	__FromChildBufErr.clear();
+	__ClearQue(__FromChildQue);
+	__ClearQue(__FromChildErrQue);
 	return *this;
 }
 
@@ -364,14 +365,10 @@ SubProcess& SubProcess::operator>>(std::string& str){
 	if( __TryReadOperation(timeout) ){
 		if( __bfIsErrOut ){
 			__bfIsErrOut = 0;
-			str = __FromChildBufErr.str();
-			__FromChildBufErr.str("");
-			__FromChildBufErr.clear();
+			__MoveString(__FromChildErrQue, str);
 			return *this;
 		} else{
-			str = __FromChildBuf.str();
-			__FromChildBuf.str("");
-			__FromChildBuf.clear();
+			__MoveString(__FromChildQue, str);
 			return *this;
 		}
 	} else{
@@ -414,16 +411,16 @@ bool SubProcess::IsReadable(DWORD time){
 	if( __numAwait ){
 		timeout = __numAwait;
 		__numAwait = 0;
-	} else {
+	} else{
 		timeout = time;
 	}
 
 	__TryReadOperation(timeout);
 	if( __bfIsErrOut ){
 		__bfIsErrOut = false;
-		return __FromChildBufErr.str().size();
+		return __FromChildErrQue.size();
 	} else{
-		return __FromChildBuf.str().size();
+		return __FromChildQue.size();
 	}
 }
 
@@ -431,7 +428,7 @@ bool SubProcess::SetUseStdErr(bool is_use)noexcept{
 	if( __numErr )
 		return false;
 	if( IsActive() ){
-		_D("Cannot be set after the subprocess has been launched.");
+		_D("Cannot be set after the SubProcess has been launched.");
 		__numErr = STILL_ACTIVE;
 		return false;
 	}
@@ -462,8 +459,6 @@ inline std::wstring SubProcess::__AtoW(const std::string& str)const{
 }
 
 bool SubProcess::__ReadFromChild(){
-	//if( __numErr )
-	//	return false;
 	OVERLAPPED_CUSTOM* pOL = &(*(__mlOL.Lend()) = {});
 	pOL->self = this;
 	pOL->dir = Dir::COUT;
@@ -482,8 +477,6 @@ bool SubProcess::__ReadFromChild(){
 }
 
 bool SubProcess::__ReadFromChildErr(){
-	//if( __numErr )
-	//	return false;
 	OVERLAPPED_CUSTOM* pOL = &(*(__mlOL.Lend()) = {});
 	pOL->self = this;
 	pOL->dir = Dir::CERROR;
@@ -501,6 +494,32 @@ bool SubProcess::__ReadFromChildErr(){
 	return true;
 }
 
+void SubProcess::__ClearQue(std::queue<OVERLAPPED_CUSTOM*>& que){
+	for( size_t sz = que.size(); sz; --sz ){
+		__mlOL.Return(que.front());
+		que.pop();
+	}
+}
+
+DWORD SubProcess::__MoveString(std::queue<OVERLAPPED_CUSTOM*>& que, std::string& str){
+	str.clear();
+	size_t TotalSize(0);
+	for( size_t i = que.size(); 0 < i; --i ){
+		OVERLAPPED_CUSTOM* p = que.front();
+		TotalSize += p->size;
+		que.pop();
+		que.push(p);
+	}
+	str.reserve(TotalSize);
+	for( size_t i = que.size(); 0 < i; --i ){
+		OVERLAPPED_CUSTOM* p = que.front();
+		str.append(p->buffer, p->size);
+		que.pop();
+		__mlOL.Return(p);
+	}
+	return (DWORD)TotalSize;
+}
+
 bool SubProcess::__TryReadOperation(DWORD timer){
 	for( ;;){
 
@@ -512,9 +531,9 @@ bool SubProcess::__TryReadOperation(DWORD timer){
 		case 0:
 		{
 			if( __bfIsErrOut ){
-				return __FromChildBufErr.str().size();
+				return __FromChildErrQue.size();
 			} else{
-				return __FromChildBuf.str().size();
+				return __FromChildQue.size();
 			}
 		}
 		default:

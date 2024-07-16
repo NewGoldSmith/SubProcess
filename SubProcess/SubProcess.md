@@ -29,40 +29,41 @@ https://qiita.com/GoldSmith/items/1de197c10c05c054461a
  　下記にデモコードを記載します。その後、番号のコメントが付けられているところの、解説を順次していきます。
 ```test2.cpp
 // test2.cpp
-#include <crtdbg.h>
-#include "test2.h"
+#include "./test2.h"
 using namespace std;
 
 int main() {
    {
-      string str;										// １
-      SubProcess sp;
-      if (!sp.Popen(R"(cmd.exe)"))
-         return 1;
-      if (!(sp.Await(3000) >> cout))
-         return 1;
+		string str;											
+		SubProcess sp;
+		sp.SetUseStdErr(true);  // １
+		if( !sp.Popen(R"(cmd.exe)") ) // ２
+			return 1;
+		if( !(sp.Await(1000) >> cout) ) // ３
+			return 1;
 
-      sp.SetUseStdErr(true);						// ２
-
-      if (!(sp >> cout)) {							// ３
-         DWORD result = sp.GetLastError();
-         cout << "\n\nError code is " << result << endl;
+ 
+      if (!(sp >> cout)) { 	// ４
+         debug_fnc::ENOut(sp.GetLastError());
          sp.ResetFlag();
       }
 
-      if (!(sp << "chcp" << endl))				// ４
+      if (!(sp << "chcp" << endl))	// ５
          return 1;
-      if (!(sp >> str))
+      if (!(sp.Await(200) >> str) )
          return 1;
       cout << str;
 
-      if (!(sp << "chcp" << "\n"))				// ５
+      sp.SetTimeOut(200); // ６
+
+      if (!(sp << "chcp\n"))	// ７
          return 1;
-      for (; sp.IsReadable();) {
-         sp >> cout;
+      for (; sp.IsReadable(100);) {
+         if( !(sp >> cout) )
+            return 1;
       }
 
-      if (!(sp << "chcp"))							// ６
+      if (!(sp << "chcp"))	// ８
          return 1;
       if (sp.IsReadable()) {
          if (!(sp >> cout))
@@ -76,14 +77,14 @@ int main() {
       }
       if (!(sp << endl))
          return 1;
-      if (sp.IsReadable()) {
+      for( ; sp.IsReadable(100); ){
          if (!(sp >> cout))
             return 1;
       }
 
-      if (!(sp << "chcp "))						// ７
+      if (!(sp << "chcp "))// ９
          return 1;
-      cout << "\n\nPlease enter the code page number." << endl;
+      cout << "\nPlease enter the code page number." << endl;
       if (!(sp << cin))
          return 1;
       if (!(sp >> cout))
@@ -93,186 +94,138 @@ int main() {
             return 1;
       }
 
-      if (!(sp << "exit" << endl))				// ８
+      if (!(sp << "exit" << endl))	// １０
          return 1;
-      for (; sp.IsReadable();) {
-         sp.Await(1000) >> cout;
-         if (!sp.SleepEx(100))
-            return 1;
+      if(sp.IsReadable(100)) {
+         sp >> cout;
       }
 
-      if (!(sp.WaitForTermination(INFINITE)))// ９
+      if (!(sp.WaitForTermination(INFINITE))) // １１
          return 1;
 
-      DWORD dw = sp.GetExitCodeSubProcess();	// １０
+      DWORD dw = sp.GetExitCodeSubProcess(); // １２
       cout << "\nExit code is " << dw << endl;
 
-      sp.Pclose();									// １１
+      sp.Pclose(); // １３
 
       cout << "\nThe SubProcess demo has successfully concluded." << endl;
    }
    _CrtDumpMemoryLeaks();
 }
-```
-### １、`cmd.exe`を子プロセスとして起動
- ```test2.cpp
-		string str;												// １
-		SubProcess sp;
-		if (!sp.Popen(R"(cmd.exe)"))
-			return 1;
-		if (!(sp.Await(3000) >> cout))
-			return 1;
  ```
-#### sp.Popen(R"(cmd.exe)")
-　子プロセスとしてcmd.exeを起動。
-#### sp.Await(3000) >> cout
-　cmd.exeは起動すると文字列を出力する事が予め判っているので、それを受け取り`std::cout`に出力。`Await(3000)`は３秒間待つという事です。非同期ですので、子プロセスが起動してから文字出力までを、受け取る側が**待つ**という動作をしています。それ以上かかる場合、**タイムアウトエラー**(エラーコード：**WAIT_TIMEOUT**）として先へ進むようになっています。タイムアウトしないと、先に進めないのでこのような仕様にしています。
-### ２、標準エラー出力を分離して出力する。
-```test2.cpp
-  	sp.SetUseStdErr(true);									// ２
-```
-　子プロセスが、標準エラーで出力した物を標準エラーで受け取るか、どうか設定します。
-### ３、わざとタイムアウトエラーにさせ、エラーコードを取得
-```test2.cpp
-		if (!(sp >> cout)) {									// ３
-			DWORD result = sp.GetLastError();
-			cout << "\n\nError code is " << result << endl;
-			sp.ResetFlag();
-		}
-```
-#### sp >> cout
-　子プロセスのcmd.exeは親プロセスがコマンドを入力するまで何も出力しません。出力しないものを待っているのでタイムアウトエラーになります。エラーコードは`WAIT_TIMEOUT`でwinerror.hで定義されています。他のエラーも前出のヘッダーで定義されています。
-#### DWORD result = sp.GetLastError();
-　最後のエラーコードを取得します。
-#### sp.ResetFlag();
-　内部のエラーフラグをリセットします。これをしないと次のメンバー関数が実行できない仕様になっています。
-### ４、コマンドを送信、その後、返信を受け取る
-```test2.cpp
-		if (!(sp << "chcp" << endl))							// ４
-			return 1;
-		if (!(sp >> str))
-			return 1;
-		cout << str;
-```
-#### sp << "chcp" << endl
-　これで子プロセスにコマンドを送ります。"**chcp**"は、コンソールの文字コードを表示したり変更したりするコマンドです。`endl`はストリームの最後に'\n'を加えてストリームフラッシュする`std::endl`をそのまま使っています。
-#### sp >> str;、cout << str;
-　そのコマンドは必ず文字を返すことが判っているので、`std::string`で受け取り、表示をします。
-### ５、std::endlしないで、改行までを送信したらどうなる？
-```test2.cpp
-		if (!(sp << "chcp" << "\n"))							// ５
-			return 1;
-		for (; sp.IsReadable();){
-			sp >> cout;
-		}
-```
-#### sp << "chcp" << "\n"
-　実は改行文字を入力すると、子プロセスに送信されます。改行文字を入力しないとバッファにデータが入ったままで送信されません。これは、SubProcess内部の仕様でそうしています。
-#### sp.IsReadable();
-　子プロセスから出力を読み込めるかどうかを、聞くことが出来ます。
-### ６、Flushして送信しても、cmd.exeは改行が無いと仕事をしない事を確認
-```test2.cpp
-		if (!(sp << "chcp"))									// ６
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
-		if (!sp.Flush())
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
-		if (!(sp << endl))
-			return 1;
-		if (sp.IsReadable()) {
-			if (!(sp >> cout))
-				return 1;
-		}
-```
-#### sp << "chcp"
-　改行無しでコマンドを入力しました。
-#### sp.IsReadable()
-　この時点では、レスポンスが無い事を確認。
-#### sp.Flush()
-　バッファの内容を送りました。
-#### sp.IsReadable()
-　レスポンスがあるか確認。この時は無し。
-#### sp << endl
-　`std::endl`を流し込みました。`flush`され、改行が送られました。
-#### sp.IsReadable()
-　読み込めることを確認。`sp >> cout`でコンソールに出力。
-### ７、std::cinから入力されたデータをダイレクトに子プロセスに流す
-```test2.cpp
-    	if (!(sp << "chcp " ))							// ７
-			return 1;
-		cout << "\n\nPlease enter the code page number." << endl;
-		if (!(sp << cin))						
-			return 1;
-		if (!(sp >> cout))
-			return 1;
-		if (sp.CErr().IsReadable()) {
-			if (!(sp.CErr() >> cerr))
-				return 1;
-		}
-```
-#### sp << "chcp "
-　`"chcp"+スペース`を入れた文字列を流し込みます。
-#### cout << "\n\nPlease enter the code page number." << endl;
-　コードページの入力を促す文字列を出力します。
-#### sp << cin
-　`std::cin`を直接流し込みます。ここで、プログラムはコンソールからの入力待ちになり、スレッドがブロッキングされてしまいます。`std::cin`の使用にはこの事を考慮する必要があります。コンソールからコードページを入力し`Enter`を押してください。
-```consol.out
-Please enter the code page number.
-932
-現在のコード ページ: 932
-```
-このような表示になるでしょう。
-#### sp.CErr().IsReadable()
-　子プロセスから親プロセスの`std::cerr`へ向けての出力が無いか確認しています。まずは無いでしょう。
-#### sp.CErr() >> cerr
-　もしあれば標準エラーに、出力するようにしています。
-### ８、cmd.exeへ"exit"の送信
-```test2.cpp
-		if (!(sp << "exit" << endl))						// ８
-			return 1;
-		for (; sp.IsReadable();) {
-			sp.Await(1000) >> cout;
-			if (!sp.SleepEx(100))
-				return 1;
-		}
-```
-#### sp << "exit" << endl
-　"exit"コマンドを送信します。
-#### for (; sp.IsReadable();)
-　データが送られ続ける間は、`for`ループで出力します。
-#### sp.SleepEx(100)
-　`SleepEx`は何か送られてこないか待ちます。送られてくれば0.1秒待たずに待ちを終了します。タイムアウトしてもエラー記録を残しません。
-### ９、子プロセスのクリーンナップを待つ
-```test2.cpp
-     if (!(sp.WaitForTermination(INFINITE)))			    // ９
-			return 1;
-```
-#### sp.WaitForTermination(INFINITE)
-　一般に"exit"を入力するとcmd.exeは、終了する事が知られています。しかし、終了処理のクリーンナップに時間が、かかる事があります。終了するまで親スレッドをブロックしてcmd.exeが終了するのを待ちます。`INFINITE`の部分は時間を1000分の1秒単位で設定できます。その時間が過ぎても終了処理が終わらない場合は、タイムアウトエラーを記録し`false`を返します。`INFINITE`はwinbase.hで定義されています。
-　もし、強制的に終了させなければならない事態になった場合は、`bool TerminateProcess(DWORD dw)`を使うと終了させることが出来ます。このメンバー関数はWindowsAPIの`TerminateProcess`を使っています。Microsoftのドキュメントによれば、
- >TerminateProcess 関数は、プロセスを無条件に終了させるために使用されます。 ExitProcess ではなく TerminateProcess を使用すると、ダイナミック リンク ライブラリ (DLL) によって保持されるグローバル データの状態が損なわれる可能性があります。
+#### 1\. sp.SetUseStdErr(true);
+　起動する前に、子プロセスからの標準エラーの書き込みを標準エラーとして受け取るかどうかを設定します。`Popen`で起動した後に設定しようとすると、エラーになり、__numErrには`STILL_ACTIVE`がセットされます。
 
-となっていますので、DLLを使う場合には扱いに注意が必要そうです。
-### １０、終了コードを取得する
-```test2.cpp
-		DWORD dw = sp.GetExitCodeSubProcess();				// １０
-		cout << "\nExit code is " << dw << endl;
+#### 2\. sp.Popen(R"(cmd.exe)")
+　子プロセスとしてcmd.exeを起動。
+#### 3\. sp.Await(1000) >> cout
+　子プロセスからの書き込みを`std::cout`に、出力します。`Await(1000)`は書き込みがあるまで1000ミリ秒待つという意味です。それでも、書き込みが無い場合、`WAIT_TIMEOUT`エラーになり、次のオペレーションが、実行できない場合があります。
+#### 4\. 
+``` test2.cpp
+      if (!(sp >> cout)) { 	// ４
+         debug_fnc::ENOut(sp.GetLastError());
+         sp.ResetFlag();
+      }
 ```
-#### sp.GetExitCodeSubProcess()
-　子プロセスの終了コードを取得します。その結果で次のアクションへの分岐も出来ます。
-### １１、子プロセスの操作ハンドルの使用を終了させる
-```test2.cpp
-		sp.Pclose();										// １１
+　子プロセスから書き込みが、無い事が判っている時に、更に読み込もうとしています。当然`WAIT_TIMEOUT`エラーになります。その後、エラー内容を`debug_fnc::ENOut(sp.GetLastError());`で、デバッグ出力しています。その後、エラーステータスを解消する為に`ResetFlag`を呼び出しています。
+#### 5\. 
+``` test2.cpp
+      if (!(sp << "chcp" << endl))	// ５
+         return 1;
+      if (!(sp.Await(200) >> str) )
+         return 1;
+      cout << str;
 ```
-#### sp.Pclose()
-子プロセスを操作できるハンドルを終了させます。この後、新たに子プロセスを起動させる事が出来ます。
+　SubProcessオブジェクト**sp**に文字列と、std::endlを入力しています。`sp.Await(200) >> str`で、子プロセスからの書き込みを`std::string`の`str`に、書き込んでいます。
+
+#### 6\. sp.SetTimeOut(200); // ６
+　デフォルトタイムアウトの設定を変更しています。初期は100ミリ秒になっています。非同期なので、状況に応じて変更しなくてはならない事があります。
+
+#### 7\. 
+``` test2.cpp
+      if (!(sp << "chcp\n"))	// ７
+         return 1;
+      for (; sp.IsReadable(100);) {
+         if( !(sp >> cout) )
+            return 1;
+      }
+```
+　行末を`std::endl`の代わりに、改行文字を"chcp"の後に加えています。これでも子プロセスに送信されます。
+
+#### 8\.
+``` test2.cpp
+      if (!(sp << "chcp"))	// ８
+         return 1;
+      if (sp.IsReadable(100)) {
+         if (!(sp >> cout))
+            return 1;
+      }
+      if (!sp.Flush())
+         return 1;
+      if (sp.IsReadable()) {
+         if (!(sp >> cout))
+            return 1;
+      }
+      if (!(sp << endl))
+         return 1;
+      for( ; sp.IsReadable(100); ){
+         if (!(sp >> cout))
+            return 1;
+      }
+```
+　`chcp`の後に、std::endlも、改行も加えなければどうなるかを見ています。`cmd.exe`は改行込みでコマンドを受け取ります。改行無しで送った場合どういう反応になるのでしょうか？
+　`IsReadable(100)`は、読み込み可能か、どうか、100ミリ秒の猶予を与えて子プロセスからの反応を待っています。読み込みが出来なくても`WAIT_TIMEOUT`エラーにはなりません。デフォルト値はタイムアウト値と同じです。最初の`IsReadable`では、読み込みが出来ません。`sp.Flush()`はストリームをフラッシュしています。この後の、`sp.IsReadable()`でも読み込みは出来ません。そして、`sp << endl`を送った後、`sp.IsReadable(100)`を実行すると、読み込みが出来ました。想定通りです。
+
+#### 9\.
+``` test2.cpp
+      if (!(sp << "chcp "))// ９
+         return 1;
+      cout << "\nPlease enter the code page number." << endl;
+      if (!(sp << cin))
+         return 1;
+      if (!(sp >> cout))
+         return 1;
+      if (sp.CErr().IsReadable()) {
+         if (!(sp.CErr() >> cerr))
+            return 1;
+      }
+```
+　"chcp "だけ書き込んでおいて、`cin`からコートページの入力を待つようにしています。ここで、コードページ（例えば、"932"+エンター）を入力すると、`cin`から反応があります。`sp.CErr().IsReadable()`は標準エラーへの書き込みが無いか、見ています。
+##### 試しに無効なコードページを入力すると
+　例えば、「**'0'+エンター**」を入力すると、「**無効なコード ページです**」 と表示されます。このまま終了すると`GetExitCodeSubProcess`は、子プロセスの終了コード「**１**」を返します。
+
+
+#### 10\.
+``` test2.cpp
+      if (!(sp << "exit" << endl))	// １０
+         return 1;
+      if(sp.IsReadable(100)) {
+         sp >> cout;
+      }
+```
+　`cmd.exe`を終了させるコマンド`exit`を送信しています。この後、子プロセスから送信があれば表示するようにしています。
+
+#### 11\.
+``` test2.cpp
+      if (!(sp.WaitForTermination(INFINITE))) // １１
+         return 1;
+```
+　子プロセス`cmd.exe`が、終了する事が分かっているので、終了を待ちます。`cmd.exe`のクリーンナップに時間が、かかる事があるので、これをしておかないと異常終了になる場合があります。std::threadの`join`と役目は似ています。
+
+#### 12\. 
+``` test2.cpp
+      DWORD dw = sp.GetExitCodeSubProcess(); // １２
+      cout << "\nExit code is " << dw << endl;
+```
+　exitコードの取得をしています。終了していないのに取得しようとしたときには、`STILL_ACTIVE`(259)が返されます。
+
+#### 13\.
+``` test2.cpp
+      sp.Pclose(); // １３
+```
+　プロセスハンドルを閉じています。この後、終了コードの取得は出来なくなります。次のプロセスを起動する事が出来ます。
+
+
 ## 以上、デモコードの解説終了
 　cmd.exeの挙動に沿った解説でした。違う子プロセスを扱うには、**事前に子プロセスの挙動を理解している必要**があります。プログラムによっては、起動直後、何のメッセージを返さないプログラムもあります。
 
@@ -317,7 +270,7 @@ Please enter the code page number.
 ##### const std::string &strCommand
 　起動させる文字列を指定します。
 #### 戻り値
-　成功したら`true`、それ以外は`false`。
+　成功したら`true`、それ以外は`false`。詳細なエラーコードは`SubProcess::GetLastError`で取得できます。エラーコードは「winerror.h」で定義されています。
 ### bool Pclose()
 #### 説明
 　子プロセスの操作ハンドルを閉じます。これを閉じるとexit コードの取得は出来なくなります。
@@ -355,7 +308,7 @@ Please enter the code page number.
 　エラーコードを返します。
 ### explicit operator bool() const noexcept
 #### 説明
-　最後のオペレーションが成功したかどうかを返します。オペレーションが失敗していた場合、`ResetFlag`が実行されるまで、次のオペレーションは実行されません。
+　最後のオペレーションが成功したかどうかを返します。オペレーションが失敗していた場合、`SubProcess &operator>>(std::string &str)`、`SubProcess &operator>>(std::ostream &os)` 等の一部のオペレーション以外は、`ResetFlag`が実行されるまで、次のオペレーションは実行されません。
 #### 戻り値
 　最後のオペレーションのエラーコードが０以外なら`false`を返します。
 #### bool IsActive()
@@ -367,23 +320,25 @@ Please enter the code page number.
 #### 説明
 　ストリームが読み込み可能かどうかを調べます。
 #### 戻り値
-　読み込み可能ならば`true`、それ以外は`false`。
+　読み込み可能ならば`true`、それ以外は`false`。**直前のオペレーションでエラーが発生しても、バッファーにデータが入っていれば`true`を返します。**
 ### bool SetUseStdErr(bool is_use)
 #### 説明
-　子プロセスから標準エラーの書き込みを、標準出力とは別の標準エラーとして、受け取るかどうかを設定します。
+　子プロセスから標準エラーの書き込みを、標準出力とは別の標準エラーとして、受け取るかどうかを設定します。`Popen`を実行する前にセットする必要があります。
 #### 引数
 ##### bool is_use
-　独立させるなら`true`、それ以外は`false`。
+　標準エラーを使うなら`true`、それ以外は`false`。
 #### 戻り値
-　直前に設定されていたかどうかを返します。
+　成功すると`true`、それ以外は`false`。もし、起動中に呼び出されると、`false`を返して、`SubProcess::GetLastError()`は`STILL_ACTIVE`を返します。
+
 ### SubProcess &operator<<(const std::string &str)
 #### 説明
-　std::stringを受け付け、それを子プロセスの標準入力に出力します。この関数を実行して、エラーがあったかどうかは、`explicit operator bool() const noexcept`等の他の関数で調べる事が出来ます。
+　std::stringを受け付け、それを子プロセスの標準入力に出力します。
 #### 引数
 ##### std::string str
 　子プロセスに渡すデータ。テキストデータに限定しません。
 ##### 戻り値
-　SubProcessオブジェクト。
+　SubProcessオブジェクト。この関数を実行して、エラーがあったかどうかは、`explicit operator bool() const noexcept`、`SubProcess::GetLastError()`の他の関数で調べる事が出来ます。
+
 ### SubProcess &operator<< (std::istream &is)
 #### 説明
 　std::cinを受け付け、それを子プロセスの標準入力に出力します。この、関数が使われたスレッドは入力が完了するまで（std::getlineがブロック解除されるまで）ブロックされます。
@@ -410,7 +365,7 @@ Please enter the code page number.
 　SubProcessオブジェクト。
 ### SubProcess &SleepEx(DWORD num)
 #### 説明
-　numで指定した時間を最大として、ブロッキングをしてIOの完了を待ちます。指定された時間前にIO操作が完了した場合、ブロッキングは解除されます。タイムアウトになってもそれはエラーとして記録されません。他の要因でエラーになった場合、内部変数に記録され、次からのオペレーションは失敗します。エラーコードは`GetLastError()`で取得できます。
+　numで指定した時間を最大として、ブロッキングをしてAPCキューの完了を待ちます。指定された時間前にAPCキューのプロシージャが実行された場合、ブロッキングは解除されます。タイムアウトになってもそれはエラーとして記録されません。他の要因でエラーになった場合、内部変数に記録され、次からのオペレーションは失敗します。エラーコードは`GetLastError()`で取得できます。APCキューに入っているプロシージャが必ずしもこのSubProcessオブジェクトとは、限りません。
 #### 引数
 ##### DWORD num
 　ミリ秒単位で待つ時間を指定します。
@@ -428,7 +383,7 @@ Please enter the code page number.
 　SubProcessオブジェクト。
 ### SubProcess &operator>>(std::string &str)
 #### 説明
-　子プロセスが送信できるかスレッドを渡して確認します。読み込み済みバッファーが空でない場合、内容をstrに書き込みます。バッファーが空の場合、タイムアウト値まで待ちます。それでも子プロセスからの入力が無い場合、タイムアウトになります。
+　子プロセスが送信できるかスレッドを渡して確認します。読み込み済みバッファーが空でない場合、内容をstrに書き込みます。バッファーが空の場合、タイムアウト値まで待ちます。それでも子プロセスからの入力が無い場合、タイムアウトになります。`SubProcess::GetLastError`で、`WAIT_TIMEOUT`を返します。
 #### 引数
 ##### std::string &str
 　バッファーの内容を書き込むstd::stringオブジェクト。
@@ -441,7 +396,7 @@ Please enter the code page number.
 ##### std::ostream &os
 　std::cout等のオブジェクト。
 #### 戻り値
-　SubProcessオブジェクト。
+　SubProcessオブジェクト。タイムアウトが発生した場合、`SubProcess::GetLastError`で`WAIT_TIMEOUT`を取得できます。
 ### friend std::ostream &operator<<(std::ostream &os, SubProcess &sp)
 #### 説明
 　std::cout等のstd::ostreamにデータを流します。
