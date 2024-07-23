@@ -27,7 +27,7 @@
     <ClCompile Include="testIOCP.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="TestOrderedCout.cpp">
+    <ClCompile Include="TestOrdered.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="TestUnOrderedCout.cpp">
@@ -43,6 +43,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="TestPrime.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="TestOrderedLockStdMutex.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
