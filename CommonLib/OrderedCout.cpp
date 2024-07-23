@@ -173,11 +173,10 @@ OrderedCOut::OrderedCOut() :
 		}
 	} }
 
-	, hThread{ [this]() {
+	, hThread{ [this](){
 		HANDLE h;
-		if (!(h = ::CreateThread(NULL,0,pThreadProc,this,0,NULL))) {
-			std::string str = debug_fnc::ENOut(::GetLastError());
-			throw std::runtime_error(str);
+		if( !(h = ::CreateThread(NULL,0,pThreadProc,this,0,NULL)) ){
+			throw std::runtime_error(debug_fnc::ENOut(::GetLastError()));
 		};
 		return h; }()
 	,

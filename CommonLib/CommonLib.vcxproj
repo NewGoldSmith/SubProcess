@@ -38,6 +38,7 @@
     <ClInclude Include="defSTRINGIZE.h" />
     <ClInclude Include="MemoryLoan.h" />
     <ClInclude Include="OrderedCout.h" />
+    <ClInclude Include="OrderLock.h" />
     <ClInclude Include="sampleIOCP.h" />
   </ItemGroup>
   <ItemGroup>
@@ -48,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OrderedCout.cpp" />
+    <ClCompile Include="OrderLock.cpp" />
     <ClCompile Include="sampleIOCP.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

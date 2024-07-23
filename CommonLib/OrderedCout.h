@@ -21,8 +21,8 @@
 #pragma comment(lib,  "../Debug_fnc/" STRINGIZE($CONFIGURATION) "/Debug_fnc-" STRINGIZE($CONFIGURATION) ".lib")
 
 class OrderedCOut{
-	static constexpr DWORD BUFFER_SIZE = 0x100;
-	static constexpr DWORD UNIT_SIZE = 0x20;
+	static constexpr DWORD BUFFER_SIZE = 0x80;
+	static constexpr DWORD UNIT_SIZE = 0x40;
 	static constexpr DWORD CONTINUOUS_TIME_OUT = 0;
 	static constexpr DWORD MESSAGE_SPACE_WIDTH = 47;
 public:
