@@ -194,6 +194,17 @@ int main() {
 ##### 試しに無効なコードページを入力すると
 　例えば、「**'0'+エンター**」を入力すると、「**無効なコード ページです**」 と表示されます。このまま終了すると`GetExitCodeSubProcess`は、子プロセスの終了コード「**１**」を返します。
 
+```プロンプト.txt
+chcp 0
+
+F:\test\Reversi\TestProject>無効なコード ページです
+exit
+
+Exit code is 1
+
+The SubProcess demo has successfully concluded.
+```
+
 
 #### 10\.
 ``` test2.cpp
