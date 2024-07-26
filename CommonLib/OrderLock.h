@@ -44,7 +44,7 @@ private:
 	bucket* __pBucket{};
 	MemoryLoan<bucket> __mlBuckets;
 	PAPCFUNC const __pAPCCallBack;
-	LPTHREAD_START_ROUTINE const __pThreadWarkerProc;
+	LPTHREAD_START_ROUTINE const __pThreadWorkerProc;
 	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEventHost;
 	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEventEndThread;
 	HANDLE __hThreadHost;

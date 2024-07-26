@@ -32,7 +32,7 @@ OrderLock::OrderLock():
 		WaitForSingleObject(pBucket->self->__hEventHost.get(), INFINITE);
 	} }
 
-	, __pThreadWarkerProc{ [](LPVOID pvoid)->DWORD{
+	, __pThreadWorkerProc{ [](LPVOID pvoid)->DWORD{
 
 		HANDLE hEvent = reinterpret_cast<HANDLE>(pvoid);
 		for( ;;){
@@ -52,7 +52,7 @@ OrderLock::OrderLock():
 	if( !(__hThreadHost = CreateThread(
 		NULL
 		, 0
-		, __pThreadWarkerProc
+		, __pThreadWorkerProc
 		, __hEventEndThread.get()
 		, 0
 		, NULL)) ){
