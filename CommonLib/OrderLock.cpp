@@ -1,5 +1,5 @@
 ﻿/**
- * @file OrderLock.h
+ * @file OrderLock.cpp
  * @brief OrderLock作成クラス宣言
  * SPDX-License-Identifier: MIT<br>
  * @date 2024<br>
@@ -9,30 +9,30 @@
 
 OrderLock::OrderLock():
 
-	pBucket{ new bucket[NUM_LOCK] }
+	__pBucket{ new bucket[NUM_LOCK] }
 
-	,mlBuckets(pBucket, NUM_LOCK)
+	,__mlBuckets(__pBucket, NUM_LOCK)
 
-	,hEventEndThread{[](){
+	,__hEventEndThread{[](){
 		HANDLE h;
 		if( !(h = CreateEvent(NULL, TRUE, FALSE, NULL)) ){
 			throw std::exception("CreateEvent");
 		} return h; }(), CloseHandle }
 
-	, hEventHost{ [](){
+	, __hEventHost{ [](){
 		HANDLE h;
 		if( !(h = CreateEvent(NULL, TRUE, FALSE, NULL)) ){
 			throw std::exception("CreateEvent");
 		} return h; }(), CloseHandle }
 	
-	, __pAPCProc{ [](ULONG_PTR Parameter){
+	, __pAPCCallBack{ [](ULONG_PTR Parameter){
 		bucket *pBucket = reinterpret_cast<bucket*>(Parameter);
 		SetEvent(pBucket->hEvent.get());
-		ResetEvent(pBucket->self->hEventHost.get());
-		WaitForSingleObject(pBucket->self->hEventHost.get(), INFINITE);
+		ResetEvent(pBucket->self->__hEventHost.get());
+		WaitForSingleObject(pBucket->self->__hEventHost.get(), INFINITE);
 	} }
 
-	, pThreadProc{ [](LPVOID pvoid)->DWORD{
+	, __pThreadWarkerProc{ [](LPVOID pvoid)->DWORD{
 
 		HANDLE hEvent = reinterpret_cast<HANDLE>(pvoid);
 		for( ;;){
@@ -49,11 +49,11 @@ OrderLock::OrderLock():
 		}
 	} }
 {
-	if( !(hThreadHost = CreateThread(
+	if( !(__hThreadHost = CreateThread(
 		NULL
 		, 0
-		, pThreadProc
-		, hEventEndThread.get()
+		, __pThreadWarkerProc
+		, __hEventEndThread.get()
 		, 0
 		, NULL)) ){
 		throw std::exception("CreateThread");
@@ -61,24 +61,24 @@ OrderLock::OrderLock():
 }
 
 OrderLock::~OrderLock(){
-	SetEvent(hEventEndThread.get());
-	WaitForSingleObject(hThreadHost, INFINITE);
-	delete[]pBucket;
+	SetEvent(__hEventEndThread.get());
+	WaitForSingleObject(__hThreadHost, INFINITE);
+	delete[]__pBucket;
 }
 
 void OrderLock::Lock(){
-	bucket* pBucket = mlBuckets.Lend();
+	bucket* pBucket = __mlBuckets.Lend();
 	pBucket->self = this;
 	pBucket->hThreadGest = GetCurrentThread();
 	ResetEvent(pBucket->hEvent.get());
-	QueueUserAPC(__pAPCProc, hThreadHost, (ULONG_PTR)pBucket);
+	QueueUserAPC(__pAPCCallBack, __hThreadHost, (ULONG_PTR)pBucket);
 	WaitForSingleObject(pBucket->hEvent.get(),INFINITE);
 	return ;
 }
 
 void OrderLock::UnLock(){
-	SetEvent(hEventHost.get());
-	mlBuckets.Return(pCurrentBucket);
+	SetEvent(__hEventHost.get());
+	__mlBuckets.Return(__pCurrentBucket);
 }
 
 OrderLock::bucket::bucket():

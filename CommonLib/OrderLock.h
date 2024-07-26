@@ -17,7 +17,6 @@
 #pragma once
 class OrderLock{
 	static constexpr DWORD NUM_LOCK = 0x40;
-	struct bucket;
 public:
 	OrderLock();
 	OrderLock(const OrderLock&) = delete;
@@ -42,14 +41,14 @@ private:
 		HANDLE hThreadGest{};
 		std::unique_ptr<std::remove_pointer_t< HANDLE>,decltype(CloseHandle)*> hEvent;
 	};
-	bucket* pBucket{};
-	MemoryLoan<bucket> mlBuckets;
-	PAPCFUNC const __pAPCProc;
-	LPTHREAD_START_ROUTINE const pThreadProc;
-	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> hEventHost;
-	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> hEventEndThread;
-	HANDLE hThreadHost;
-	bucket* pCurrentBucket{};
+	bucket* __pBucket{};
+	MemoryLoan<bucket> __mlBuckets;
+	PAPCFUNC const __pAPCCallBack;
+	LPTHREAD_START_ROUTINE const __pThreadWarkerProc;
+	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEventHost;
+	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEventEndThread;
+	HANDLE __hThreadHost;
+	bucket* __pCurrentBucket{};
 
 };
 
