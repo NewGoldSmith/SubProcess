@@ -28,7 +28,7 @@ namespace debug_fnc {
 	void print_binary(uint64_t b);
 	std::string _d(const std::string strFile, const std::string strLine, const std::string str);
 	void dout_binary(uint64_t b);
-	void dout(const std::string& str);
+	std::string dout(const std::string& str);
 	std::string GetErrString(DWORD dw);
 	const std::string ErrOut_(
 		DWORD dw
@@ -36,10 +36,10 @@ namespace debug_fnc {
 		, DWORD dwLine
 		, LPCSTR lpcszFunction
 		, const std::string& lpszOpMessage = "");
-#define EOut ErrOut_(::GetLastError(),__FILE__,__LINE__,__FUNCTION__)
-#define ENOut(err_num) ErrOut_(err_num,__FILE__,__LINE__,__FUNCTION__)
-#define ENMOut(err_num,mes) ErrOut_(err_num,__FILE__,__LINE__,__FUNCTION__,mes)
-#define _MES(s) {::OutputDebugStringA((std::string(__FILE__ "(" STRINGIZE(__LINE__) "):")+std::string(s)+"\r\n").c_str());}
+#define EOut debug_fnc::ErrOut_(::GetLastError(),__FILE__,__LINE__,__FUNCTION__)
+#define ENOut(err_num) debug_fnc::ErrOut_(err_num,__FILE__,__LINE__,__FUNCTION__)
+#define ENMOut(err_num,mes) debug_fnc::ErrOut_(err_num,__FILE__,__LINE__,__FUNCTION__,mes)
+#define _MES(s) debug_fnc::_d(__FILE__, STRINGIZE(__LINE__),s)
 #ifdef _DEBUG
 #define _D(s) debug_fnc::_d(__FILE__,STRINGIZE(__LINE__),s)
 #define _DOB(b){::OutputDebugStringA(__FILE__ "(" STRINGIZE(__LINE__)"):" #b "\r\n");debug_fnc::dout_binary(b);}

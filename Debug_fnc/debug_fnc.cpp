@@ -105,9 +105,10 @@ void debug_fnc::dout_binary(uint64_t b)
 	::OutputDebugStringA((binary_to_string(b) + "\r\n").c_str());
 }
 
-void debug_fnc::dout(const std::string& str)
+std::string debug_fnc::dout(const std::string& str)
 {
 	::OutputDebugStringA((str + "\r\n").c_str());
+	return str;
 }
 
 std::string debug_fnc::GetErrString(DWORD dw)
