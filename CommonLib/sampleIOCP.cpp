@@ -20,7 +20,7 @@ sampleIOCP::sampleIOCP():
 			, [](OVERLAPPED_CUSTOM* p)->void{p->self->__mlOL.Return(p); }};
 
 		if( errorCode != ERROR_SUCCESS ){
-			debug_fnc::ENOut(errorCode);
+			ENOut(errorCode);
 			pOL->self->__numErr = errorCode;
 			return;
 		}
@@ -43,7 +43,7 @@ sampleIOCP::sampleIOCP():
 			, [](OVERLAPPED_CUSTOM* p)->void{p->self->__mlOL.Return(p); } };
 
 		if( errorCode != ERROR_SUCCESS ){
-			debug_fnc::ENOut(errorCode);
+			ENOut(errorCode);
 			pOL->self->__numErr = errorCode;
 			return;
 		}
@@ -79,7 +79,7 @@ sampleIOCP::sampleIOCP():
 	HANDLE h;
 	if( !(h = ::CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0)) ){
 		DWORD dw = GetLastError();
-		throw std::exception(debug_fnc::ENOut(dw).c_str());};	return h; }()
+		throw std::exception(ENOut(dw).c_str());};	return h; }()
 			, ::CloseHandle }
 #endif // USING_IOCP
 {
@@ -91,10 +91,10 @@ sampleIOCP::sampleIOCP():
 
 #ifdef USING_IOCP
 	if (!(::CreateIoCompletionPort(__hSevR, __hIOCP.get(), __dir::R, 0)) ){
-		throw std::exception(debug_fnc::ENOut(__numErr = ::GetLastError()).c_str());
+		throw std::exception(ENOut(__numErr = ::GetLastError()).c_str());
 	}
 	if (!(::CreateIoCompletionPort(__hSevW, __hIOCP.get(), __dir::W, 0)) ){
-		throw std::exception(debug_fnc::ENOut(__numErr = ::GetLastError()).c_str());
+		throw std::exception(ENOut(__numErr = ::GetLastError()).c_str());
 	}
 #endif // USING_IOCP
 	__ReadFromCli();
@@ -133,7 +133,7 @@ bool sampleIOCP::__CreatePipes() {
 			, BUFER_SIZE_PIPE
 			, 0
 			, NULL)) == INVALID_HANDLE_VALUE) {
-			debug_fnc::ENOut(__numErr = ::GetLastError());
+			ENOut(__numErr = ::GetLastError());
 			return FALSE;
 		}
 
@@ -146,7 +146,7 @@ bool sampleIOCP::__CreatePipes() {
 			, FILE_ATTRIBUTE_NORMAL
 			, NULL
 		)) == INVALID_HANDLE_VALUE) {
-			debug_fnc::ENOut(__numErr = ::GetLastError());
+			ENOut(__numErr = ::GetLastError());
 			return FALSE;
 		};
 	}
@@ -161,7 +161,7 @@ bool sampleIOCP::__CreatePipes() {
 			, BUFER_SIZE_PIPE
 			, 0
 			, NULL)) == INVALID_HANDLE_VALUE) {
-			debug_fnc::ENOut(__numErr = ::GetLastError());
+			ENOut(__numErr = ::GetLastError());
 			return FALSE;
 		}
 
@@ -174,7 +174,7 @@ bool sampleIOCP::__CreatePipes() {
 			, FILE_ATTRIBUTE_NORMAL
 			, NULL
 		)) == INVALID_HANDLE_VALUE) {
-			debug_fnc::ENOut(__numErr = ::GetLastError());
+			ENOut(__numErr = ::GetLastError());
 			return FALSE;
 		};
 	}
@@ -187,7 +187,7 @@ bool sampleIOCP::__CancelMultipleIO(){
 
 #ifdef USING_IOCP
 	if( !::CancelSynchronousIo(__hThreadCli) ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 	}
 
 	for( ;;){
@@ -215,7 +215,7 @@ end_of_loop:
 		if( (dw = ::SleepEx(CONTINUOUS_TIMEOUT, TRUE)) == WAIT_IO_COMPLETION ){
 			continue;
 		}
-		debug_fnc::ENOut(dw);
+		ENOut(dw);
 		break;
 	}
 	::CancelIoEx(__hCliR, NULL);
@@ -253,7 +253,7 @@ bool sampleIOCP::__WriteToCli(const std::string& str) {
 				break;
 			}
 			default:
-				debug_fnc::ENOut(__numErr);
+				ENOut(__numErr);
 				return false;
 			}
 		}
@@ -284,7 +284,7 @@ bool sampleIOCP::__WriteToCli(const std::string& str) {
 			}
 
 			default:
-				debug_fnc::ENOut(__numErr);
+				ENOut(__numErr);
 				return false;
 			}
 #else // USING_IOCP
@@ -301,7 +301,7 @@ bool sampleIOCP::__WriteToCli(const std::string& str) {
 				goto end_of_loop;
 			}
 			default:
-				debug_fnc::ENOut(__numErr);
+				ENOut(__numErr);
 				goto end_of_loop;
 			}
 #endif // !USING_IOCP
@@ -358,7 +358,7 @@ bool sampleIOCP::__ReadFromCli() {
 			break;
 		}
 		default:
-			debug_fnc::ENOut(__numErr);
+			ENOut(__numErr);
 			return false;
 		}
 	}
@@ -369,7 +369,7 @@ bool sampleIOCP::__ReadFromCli() {
 		, sizeof(pOL->buffer)
 		, (OVERLAPPED*)pOL
 		, __pfReadFromCliCompleted)) {
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return false;
 	}
 #endif // USING_IOCP
@@ -385,7 +385,7 @@ bool sampleIOCP::__ReadFromCli() {
 			goto end_of_loop;
 		}
 		default:
-			debug_fnc::ENOut(__numErr);
+			ENOut(__numErr);
 			return false;
 		}
 
@@ -404,7 +404,7 @@ bool sampleIOCP::__ReadFromCli() {
 			goto end_of_loop;
 		}
 		default:
-			debug_fnc::ENOut(__numErr);
+			ENOut(__numErr);
 			goto end_of_loop;
 		}
 #endif // USING_IOCP
@@ -429,7 +429,7 @@ bool sampleIOCP::__StartCliThread()
 			, this
 			, 0
 			, NULL))) {
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return false;
 	}
 	return true;
@@ -450,7 +450,7 @@ bool sampleIOCP::__WriteCliSide(const std::string &str) {
 		, (DWORD)str.size()
 		, NULL
 		, NULL)) {
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return FALSE;
 	}
 	return TRUE;
@@ -464,7 +464,7 @@ bool sampleIOCP::__ReadCliSide(std::string &str) {
 					  , (DWORD)str.size()
 					  , &dwRead
 					  , NULL)) {
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return FALSE;
 	}
 	str.resize(dwRead);
@@ -538,7 +538,7 @@ sampleIOCP &sampleIOCP::operator>>(string &str) {
 			goto end_of_loop;
 		}
 		default:
-			debug_fnc::ENOut(__numErr);
+			ENOut(__numErr);
 			goto end_of_loop;
 		}
 #else // USING_IOCP
@@ -563,7 +563,7 @@ sampleIOCP &sampleIOCP::operator>>(string &str) {
 			goto end_of_loop;
 		}
 		default:
-			debug_fnc::ENOut(__numErr);
+			ENOut(__numErr);
 			goto end_of_loop;
 		}
 #endif // !USING_IOCP

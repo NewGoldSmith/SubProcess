@@ -19,6 +19,10 @@
 /// @brief クリティカルセクションを使用する場合
 #define ML_USING_CRITICAL_SECTION
 
+/// @def ML_CS_SPIN_COUNT
+/// @brief クリティカルセクションのスピンカウントを指定
+#define ML_CS_SPIN_COUNT 0x10000000
+
 /// @def ML_CONFIRM_RANGE
 /// @brief 範囲外確認を行う場合。
 #define ML_CONFIRM_RANGE
@@ -78,7 +82,7 @@ public:
 			throw std::invalid_argument(estr);
 		}
 #ifdef ML_USING_CRITICAL_SECTION
-		(void)::InitializeCriticalSection(&cs);
+		(void)::InitializeCriticalSectionAndSpinCount(&cs, ML_CS_SPIN_COUNT);
 #endif // ML_USING_CRITICAL_SECTION
 		ppBuf = new T * [sizeIn];
 		for (size_t i(0); i < sizeIn; ++i) {
@@ -239,6 +243,7 @@ protected:
 
 };
 
+#undef ML_CS_SPIN_COUNT
 #undef ML_USING_CRITICAL_SECTION
 #undef ML_CONFIRM_RANGE
 #undef ML_USING_DEBUG_OUT

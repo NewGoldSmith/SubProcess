@@ -30,6 +30,9 @@
     <ClInclude Include="OrderLock.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="ordered_lock_cv.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MemoryLoan.md" />
@@ -45,6 +48,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="OrderLock.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="ordered_lock_cv.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

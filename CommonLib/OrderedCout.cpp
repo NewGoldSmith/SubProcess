@@ -10,7 +10,7 @@
 OrderedCOut::OrderedCOut() :
 	hEventThread{ []() {HANDLE h;
 		if (!(h = ::CreateEvent(NULL,TRUE,FALSE,NULL))) {
-			std::string str = debug_fnc::ENOut(::GetLastError());
+			std::string str = ENOut(::GetLastError());
 			throw std::runtime_error(str);
 		};
 		return h; }()
@@ -19,14 +19,16 @@ OrderedCOut::OrderedCOut() :
 	
 	, hEventMessage{ []() {HANDLE h;
 		if (!(h = ::CreateEvent(NULL,TRUE,FALSE,NULL))) {
-			std::string str = debug_fnc::ENOut(::GetLastError());
+			std::string str = ENOut(::GetLastError());
 			throw std::runtime_error(str);
 		};
 		return h; }()
 	,
 		::CloseHandle }
 
-	,__mlms(__MessageArr, UNIT_SIZE)
+	, __MessageArr{ std::make_unique<message[]>(UNIT_SIZE) }
+
+	, __mlms(__MessageArr.get(), UNIT_SIZE)
 
 	, __pAPCProc{ [](ULONG_PTR dwParam) {
 		std::unique_ptr<message ,void(*)(message*)> pmes = {
@@ -156,18 +158,19 @@ OrderedCOut::OrderedCOut() :
 		}
 	}}
 
-	, pThreadProc{ [](LPVOID pvoid)->DWORD {
+	, pThreadProc{ [](LPVOID pvoid)->unsigned {
 		OrderedCOut* pThis = reinterpret_cast<OrderedCOut*>(pvoid);
 
 		for (;;) {
 			DWORD dw = ::WaitForSingleObjectEx(pThis->hEventThread.get(), INFINITE, TRUE);
 			if (dw == WAIT_IO_COMPLETION) {
-				_D("APC executed.");
+				_D("OrderedCOut APC executed.");
+				continue;
 			} else if (dw == WAIT_OBJECT_0) {
-				_D("Event signaled.");
+				_D("OrderedCOut ended.");
 				return 0;
 			} else {
-				debug_fnc::ENOut((pThis->__numErr = ::GetLastError()));
+				ENOut((pThis->__numErr = ::GetLastError()));
 				return 1;
 			}
 		}
@@ -175,8 +178,8 @@ OrderedCOut::OrderedCOut() :
 
 	, hThread{ [this](){
 		HANDLE h;
-		if( !(h = ::CreateThread(NULL,0,pThreadProc,this,0,NULL)) ){
-			throw std::runtime_error(debug_fnc::ENOut(::GetLastError()));
+		if( !(h = (HANDLE)::_beginthreadex(NULL, 0, pThreadProc, this, 0, NULL)) ){
+			throw std::runtime_error(ENOut(::GetLastError()));
 		};
 		return h; }()
 	,
@@ -199,7 +202,7 @@ OrderedCOut& OrderedCOut::Push(const std::string& str)
 	pmes->size = str.size();
 	pmes->self = this;
 	if (!::QueueUserAPC(__pAPCProc, hThread.get(), (ULONG_PTR)pmes)) {
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return *this;
 	}
 	return *this;
@@ -241,7 +244,7 @@ double OrderedCOut::TotalTime() {
 	DWORD dw;
 	if( !((dw = ::WaitForSingleObject(hEventMessage.get(), INFINITE)) == WAIT_OBJECT_0) ){
 		if( dw == WAIT_FAILED ){
-			debug_fnc::ENOut(__numErr = ::GetLastError());
+			ENOut(__numErr = ::GetLastError());
 		}
 		return 0.0;
 	}
@@ -265,7 +268,7 @@ OrderedCOut& OrderedCOut::MessageFlush(){
 	DWORD dw;
 	if(!((dw = ::WaitForSingleObject(hEventMessage.get(), INFINITE)) == WAIT_OBJECT_0)){
 		if( dw == WAIT_FAILED ){
-			debug_fnc::ENOut(__numErr = ::GetLastError());
+			ENOut(__numErr = ::GetLastError());
 		}
 		return *this;
 	}
@@ -279,7 +282,7 @@ bool OrderedCOut::__PushOp(OP op, HANDLE h,void* const pvoid){
 	pmes->hEvent = h;
 	pmes->pvoid = pvoid;
 	if( !::QueueUserAPC(__pAPCProc, hThread.get(), (ULONG_PTR)pmes) ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return false;
 	}
 	return true;

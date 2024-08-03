@@ -7,16 +7,19 @@
  */
 
 #include <Windows.h>
+#include <process.h>
 #include <iostream>
 #include <memory>
 #include <type_traits>
+#include <mutex>
 #include <exception>
 #include "../CommonLib/MemoryLoan.h"
 #include "../Debug_fnc/debug_fnc.h"
 
 #pragma once
 class OrderLock{
-	static constexpr DWORD NUM_LOCK = 0x40;
+	static constexpr DWORD NUM_LOCK = 0x8000;
+	static constexpr DWORD TIME_OUT = 100;
 public:
 	OrderLock();
 	OrderLock(const OrderLock&) = delete;
@@ -28,6 +31,7 @@ public:
 	~OrderLock();
 	void Lock();
 	void UnLock();
+	void Flush();
 private:
 	struct bucket{
 		bucket();
@@ -39,16 +43,30 @@ private:
 		bucket& operator ()(bucket&&)noexcept = delete;
 		OrderLock* self{};
 		HANDLE hThreadGest{};
-		std::unique_ptr<std::remove_pointer_t< HANDLE>,decltype(CloseHandle)*> hEvent;
-	};
-	bucket* __pBucket{};
+		std::unique_ptr<std::remove_pointer_t< HANDLE>, decltype(CloseHandle)*> hEvent;
+	}	*__pBucket;
 	MemoryLoan<bucket> __mlBuckets;
-	PAPCFUNC const __pAPCCallBack;
-	LPTHREAD_START_ROUTINE const __pThreadWorkerProc;
-	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEventHost;
-	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEventEndThread;
-	HANDLE __hThreadHost;
-	bucket* __pCurrentBucket{};
+	//struct hEvents_t{
+	//	HANDLE hEvEnd{};
+	//	HANDLE hEvFlush{};
+	//	HANDLE hEvWait{};
+	//	OrderLock* self{};
+	//} hEvents;
+	PAPCFUNC const __pAPCLock;
+	PAPCFUNC const __pAPCUnLock;
+	PAPCFUNC const __pOpFlush;
+	_beginthreadex_proc_type const __pThreadOperationProc;
+	_beginthreadex_proc_type const __pThreadWorkerProc;
+	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEvWorkerGate;
+	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEvEndWorkerThread;
+	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEvEndOpThread;
+	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEvFlush;
+	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEvWaitForWorker;
+	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEvGuard;
 
+	HANDLE  __hThreadHost;
+	HANDLE __hThreadOp;
+	bucket* __pCurrentBucket{};
+	void __Flush();
 };
 
