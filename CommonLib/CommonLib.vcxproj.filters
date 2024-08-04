@@ -27,7 +27,7 @@
     <ClInclude Include="MemoryLoan.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="OrderLock.h">
+    <ClInclude Include="OrderedLock.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="ordered_lock_cv.h">
@@ -47,7 +47,7 @@
     <ClCompile Include="OrderedCout.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="OrderLock.cpp">
+    <ClCompile Include="OrderedLock.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="ordered_lock_cv.cpp">

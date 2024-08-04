@@ -38,7 +38,7 @@
     <ClInclude Include="defSTRINGIZE.h" />
     <ClInclude Include="MemoryLoan.h" />
     <ClInclude Include="OrderedCout.h" />
-    <ClInclude Include="OrderLock.h" />
+    <ClInclude Include="OrderedLock.h" />
     <ClInclude Include="ordered_lock_cv.h" />
     <ClInclude Include="sampleIOCP.h" />
   </ItemGroup>
@@ -50,7 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OrderedCout.cpp" />
-    <ClCompile Include="OrderLock.cpp" />
+    <ClCompile Include="OrderedLock.cpp" />
     <ClCompile Include="ordered_lock_cv.cpp" />
     <ClCompile Include="sampleIOCP.cpp" />
   </ItemGroup>

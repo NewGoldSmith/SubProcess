@@ -1,6 +1,6 @@
-/**
+ï»¿/**
  * @file ordered_lock_cv.cpp
- * @brief ordered_lock_cvƒNƒ‰ƒXŽÀ‘•
+ * @brief ordered_lock_cvã‚¯ãƒ©ã‚¹å®Ÿè£…
  * SPDX-License-Identifier: MIT<br>
  * @date 2024<br>
  * @author Gold Smith
@@ -9,90 +9,56 @@
 
 ordered_lock_cv::ordered_lock_cv():
 
-	__pBucket{ new bucket[NUM_LOCK] }
-
-	, __mlBuckets(__pBucket, NUM_LOCK)
-
-	, __hEventEndThread{ [](){
-		HANDLE h;
-		if( !(h = CreateEvent(NULL, TRUE, FALSE, NULL)) ){
-			throw std::exception("CreateEvent");
-		} return h; }(), CloseHandle }
-
-	, __hEventHost{ [](){
-		HANDLE h;
-		if( !(h = CreateEvent(NULL, TRUE, FALSE, NULL)) ){
-			throw std::exception("CreateEvent");
-		} return h; }(), CloseHandle }
-
-	, __pAPCCallBack{ [](ULONG_PTR Parameter){
-		bucket* pBucket = reinterpret_cast<bucket*>(Parameter);
-		SetEvent(pBucket->hEvent.get());
-		ResetEvent(pBucket->self->__hEventHost.get());
-		WaitForSingleObject(pBucket->self->__hEventHost.get(), INFINITE);
-	} }
-
-	, __pAPCLockUnLock{ [](ULONG_PTR Parameter){
-		bucket* pBucket = reinterpret_cast<bucket*>(Parameter);
-		//SetEvent(pBucket->hEvent.get());
+	 p_push_and_acquire{ [](
+		ordered_lock_cv* pthis
+		, std::thread::id id
+		,bool* pb){
 		
-		ResetEvent(pBucket->self->__hEventHost.get());
-		WaitForSingleObject(pBucket->self->__hEventHost.get(), INFINITE);
+		std::lock_guard < std::mutex> lk(pthis->mtx_guard);
+		if( !pthis->is_locked ){
+			pthis->is_locked = true;
+			*pb = true;
+		} else{
+			*pb = false;
+			pthis->que_ids.push(id);
+		}
+	
 	} }
 
-	, __pThreadWorkerProc{ [](LPVOID pvoid)->DWORD{
-
-		HANDLE hEvent = reinterpret_cast<HANDLE>(pvoid);
-		for( ;;){
-			DWORD dw = ::WaitForSingleObjectEx(hEvent, INFINITE, TRUE);
-			if( dw == WAIT_IO_COMPLETION ){
-				OutputDebugStringA("APC executed.\r\n");
-			} else if( dw == WAIT_OBJECT_0 ){
-				OutputDebugStringA("Event signaled.\r\n");
-				return 0;
-			} else{
-				std::cerr << "err" << std::endl;
-				return 123;
-			}
+	, p_pop_and__notification{ [](ordered_lock_cv* pthis){
+		std::lock_guard < std::mutex> lk(pthis->mtx_guard);
+		if( pthis->que_ids.size() ){
+			pthis->target_id = pthis->que_ids.front();
+			pthis->que_ids.pop();
+			pthis->cv.notify_all();
+			return;
+		} else{
+			pthis->is_locked = false;
 		}
-	} }{
-	if( !(__hThreadHost = CreateThread(
-		NULL
-		, 0
-		, __pThreadWorkerProc
-		, __hEventEndThread.get()
-		, 0
-		, NULL)) ){
-		throw std::exception("CreateThread");
-	};
+	} }
+{
 }
 
 ordered_lock_cv::~ordered_lock_cv(){
-	SetEvent(__hEventEndThread.get());
-	WaitForSingleObject(__hThreadHost, INFINITE);
-	delete[]__pBucket;
 }
 
 void ordered_lock_cv::Lock(){
-	bucket* pBucket = __mlBuckets.Lend();
-	pBucket->self = this;
-	pBucket->hThreadGest = GetCurrentThread();
-	ResetEvent(pBucket->hEvent.get());
-	QueueUserAPC(__pAPCCallBack, __hThreadHost, (ULONG_PTR)pBucket);
-	WaitForSingleObject(pBucket->hEvent.get(), INFINITE);
+	std::thread::id id = std::this_thread::get_id();
+	bool is_acquire{ false };
+	{
+		std::thread thread(p_push_and_acquire, this, id ,&is_acquire);
+		thread.join();
+	}
+	if( is_acquire ){
+		return;
+	}else	{
+		std::unique_lock<std::mutex> mtx_lk(mtx);
+		cv.wait(mtx_lk, [this, id]{return id == target_id; });
+	}
 	return;
 }
 
 void ordered_lock_cv::UnLock(){
-	SetEvent(__hEventHost.get());
-	__mlBuckets.Return(__pCurrentBucket);
+	std::thread thread(p_pop_and__notification, this);
+	thread.join();
 }
-
-ordered_lock_cv::bucket::bucket():
-	hEvent{ [](){HANDLE h; if( !(h = CreateEvent(NULL,TRUE,FALSE,NULL)) ){
-		std::string str = ENOut(GetLastError());
-		throw std::exception(str.c_str());
-}	return h; }()
-,CloseHandle }
-
-{}

@@ -5,19 +5,18 @@
  * @date 2024<br>
  * @author Gold Smith
  */
-#include <Windows.h>
-#include <iostream>
+
 #include <memory>
-#include <type_traits>
+#include <mutex>
+#include <atomic>
 #include <exception>
 #include <condition_variable>
-#include <mutex>
-#include "../CommonLib/MemoryLoan.h"
-#include "../Debug_fnc/debug_fnc.h"
+#include <thread>
+#include <queue>
 
 #pragma once
 class ordered_lock_cv{
-	static constexpr DWORD NUM_LOCK = 0x8000;
+	static constexpr unsigned NUM_LOCKS = 0x8000;
 public:
 	ordered_lock_cv();
 	ordered_lock_cv(const ordered_lock_cv&) = delete;
@@ -30,27 +29,13 @@ public:
 	void Lock();
 	void UnLock();
 private:
-	struct bucket{
-		bucket();
-		bucket(const bucket&) = delete;
-		bucket(bucket&&) = delete;
-		bucket& operator =(const bucket&) = delete;
-		bucket& operator =(bucket&&)noexcept = delete;
-		bucket& operator ()(const	bucket&) = delete;
-		bucket& operator ()(bucket&&)noexcept = delete;
-		ordered_lock_cv* self{};
-		HANDLE hThreadGest{};
-		std::unique_ptr<std::remove_pointer_t< HANDLE>, decltype(CloseHandle)*> hEvent;
-	};
-	bucket* __pBucket{};
-	MemoryLoan<bucket> __mlBuckets;
-	PAPCFUNC const __pAPCCallBack;
-	PAPCFUNC const __pAPCLockUnLock;
-	LPTHREAD_START_ROUTINE const __pThreadWorkerProc;
-	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEventHost;
-	std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(CloseHandle)*> __hEventEndThread;
-	HANDLE __hThreadHost;
-	bucket* __pCurrentBucket{};
 	std::mutex mtx;
+	std::mutex mtx_guard;
 	std::condition_variable cv;
+	std::queue<std::thread::id> que_ids;
+	std::thread::id target_id;
+	bool is_locked{ false };
+	void (* const p_push_and_acquire)(ordered_lock_cv* pthis, std::thread::id id, bool* pb);
+	void (* const p_pop_and__notification)(ordered_lock_cv* pthis);
 };
+

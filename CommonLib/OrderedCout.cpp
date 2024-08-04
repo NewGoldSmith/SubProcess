@@ -164,7 +164,7 @@ OrderedCOut::OrderedCOut() :
 		for (;;) {
 			DWORD dw = ::WaitForSingleObjectEx(pThis->hEventThread.get(), INFINITE, TRUE);
 			if (dw == WAIT_IO_COMPLETION) {
-				_D("OrderedCOut APC executed.");
+				//_D("OrderedCOut APC executed.");
 				continue;
 			} else if (dw == WAIT_OBJECT_0) {
 				_D("OrderedCOut ended.");
