@@ -5,7 +5,7 @@
  * @date 2024<br>
  * @author Gold Smith
  */
-#include "./SubProcess.h"
+#include "SubProcess.h"
 SubProcess::SubProcess():
 
 	__pOL{ [](){OVERLAPPED_CUSTOM* p =
@@ -22,7 +22,7 @@ SubProcess::SubProcess():
 		OVERLAPPED_CUSTOM* pOL = reinterpret_cast<OVERLAPPED_CUSTOM*>(overlapped);
 
 		if( errorCode != ERROR_SUCCESS ){
-			debug_fnc::ENOut(pOL->self->__numErr = errorCode);
+			ENOut(pOL->self->__numErr = errorCode);
 		}
 
 		pOL->size = bytesTransferred;
@@ -46,7 +46,7 @@ SubProcess::SubProcess():
 			, [](OVERLAPPED_CUSTOM* p)->void{p->self->__mlOL.Return(p); } };
 
 		if( errorCode != ERROR_SUCCESS ){
-			debug_fnc::ENOut(pOL->self->__numErr = errorCode);
+			ENOut(pOL->self->__numErr = errorCode);
 		}
 	} }{
 
@@ -81,7 +81,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 				, BUFER_SIZE_PIPE
 				, 0
 				, NULL)) == INVALID_HANDLE_VALUE ){
-				debug_fnc::ENOut(__numErr = ::GetLastError());
+				ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
@@ -94,7 +94,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 				FILE_ATTRIBUTE_NORMAL,              // default attributes 
 				NULL// no template file 
 			)) == INVALID_HANDLE_VALUE ){
-				debug_fnc::ENOut(__numErr = ::GetLastError());
+				ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
 		}
@@ -109,7 +109,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 				, BUFER_SIZE_PIPE
 				, 0
 				, NULL)) == INVALID_HANDLE_VALUE ){
-				debug_fnc::ENOut(__numErr = ::GetLastError());
+				ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
@@ -122,7 +122,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 				FILE_ATTRIBUTE_NORMAL,
 				NULL
 			)) == INVALID_HANDLE_VALUE ){
-				debug_fnc::ENOut(__numErr = ::GetLastError());
+				ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
 		}
@@ -137,7 +137,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 				, BUFER_SIZE_PIPE
 				, 0
 				, NULL)) == INVALID_HANDLE_VALUE ){
-				debug_fnc::ENOut(__numErr = ::GetLastError());
+				ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			}
 
@@ -150,7 +150,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 				FILE_ATTRIBUTE_NORMAL,              // default attributes 
 				NULL// no template file 
 			)) == INVALID_HANDLE_VALUE ){
-				debug_fnc::ENOut(__numErr = ::GetLastError());
+				ENOut(__numErr = ::GetLastError());
 				return FALSE;
 			};
 		}
@@ -168,7 +168,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 	std::wstring wstrPath(MAX_PATH, L'\0');
 	wstrPath.resize(::GetCurrentDirectoryW(MAX_PATH, wstrPath.data()));
 	if( !wstrPath.size() ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return false;
 	}
 
@@ -185,7 +185,7 @@ bool SubProcess::Popen(const std::string& strCommand){
 		&siStartInfo,  // STARTUPINFO pointer 
 		&__PI) )  // receives PROCESS_INFORMATION
 	{
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		__ClosePipes();
 		return FALSE;
 	}
@@ -222,7 +222,7 @@ bool SubProcess::Pclose(){
 DWORD SubProcess::GetExitCodeSubProcess(){
 	DWORD dw;
 	if( !::GetExitCodeProcess(__PI.hProcess, &dw) ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return 0;
 	}
 	return dw;
@@ -230,7 +230,7 @@ DWORD SubProcess::GetExitCodeSubProcess(){
 
 bool SubProcess::TerminateProcess(DWORD dw){
 	if( !::TerminateProcess(__PI.hProcess, dw) ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return false;
 	}
 	return true;
@@ -239,10 +239,10 @@ bool SubProcess::TerminateProcess(DWORD dw){
 bool SubProcess::WaitForTermination(DWORD time){
 	if( !((__numErr = ::WaitForSingleObject(__PI.hProcess, time)) == WAIT_OBJECT_0) ){
 		if( __numErr == WAIT_FAILED ){
-			debug_fnc::ENOut(__numErr = ::GetLastError());
+			ENOut(__numErr = ::GetLastError());
 			return false;
 		} else{
-			debug_fnc::ENOut(__numErr);
+			ENOut(__numErr);
 			return false;
 		}
 	}
@@ -337,7 +337,7 @@ SubProcess& SubProcess::Flush(){
 		__ToChildBuf.clear();
 	}
 	if( !FlushFileBuffers(__hSevW) ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return *this;
 	}
 	return *this;
@@ -399,7 +399,7 @@ bool SubProcess::IsActive(){
 		return false;
 	DWORD dw;
 	if( !::GetExitCodeProcess(__PI.hProcess, &dw) ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		return false;
 	}
 	return dw == STILL_ACTIVE;
@@ -450,7 +450,7 @@ inline std::wstring SubProcess::__AtoW(const std::string& str)const{
 		, static_cast<int>(str.size())
 		, wstr.data()
 		, static_cast<int>(wstr.size()))) ){
-		debug_fnc::ENOut(::GetLastError());
+		ENOut(::GetLastError());
 		wstr.resize(0);
 		return wstr;
 	}
@@ -468,7 +468,7 @@ bool SubProcess::__ReadFromChild(){
 		, sizeof(pOL->buffer)
 		, (OVERLAPPED*)pOL
 		, __pfReadFromChildCompleted) ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		__mlOL.Return(pOL);
 		return false;
 	}
@@ -486,7 +486,7 @@ bool SubProcess::__ReadFromChildErr(){
 		, sizeof(pOL->buffer)
 		, (OVERLAPPED*)pOL
 		, __pfReadFromChildCompleted) ){
-		debug_fnc::ENOut(__numErr = ::GetLastError());
+		ENOut(__numErr = ::GetLastError());
 		__mlOL.Return(pOL);
 		return false;
 	}
@@ -609,7 +609,7 @@ bool SubProcess::__WriteToCli(const std::string& str){
 			, (DWORD)size
 			, (OVERLAPPED*)pOL
 			, __pfWriteToChildCompleted) ){
-			debug_fnc::ENOut(__numErr = GetLastError());
+			ENOut(__numErr = GetLastError());
 			__mlOL.Return(pOL);
 			return FALSE;
 		}
