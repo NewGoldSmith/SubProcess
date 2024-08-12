@@ -79,6 +79,8 @@
     <CharacterSet>Unicode</CharacterSet>
     <EnableDPCppRuntimeEnvironment>false</EnableDPCppRuntimeEnvironment>
     <EnableASAN>false</EnableASAN>
+    <UseInteloneTBB>true</UseInteloneTBB>
+    <UseMpiLibrary1A>MSMPI</UseMpiLibrary1A>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -87,6 +89,8 @@
     <CharacterSet>Unicode</CharacterSet>
     <EnableDPCppRuntimeEnvironment>false</EnableDPCppRuntimeEnvironment>
     <EnableASAN>false</EnableASAN>
+    <UseInteloneTBB>true</UseInteloneTBB>
+    <UseMpiLibrary1A>MSMPI</UseMpiLibrary1A>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -96,6 +100,8 @@
     <CharacterSet>Unicode</CharacterSet>
     <EnableDPCppRuntimeEnvironment>false</EnableDPCppRuntimeEnvironment>
     <EnableASAN>false</EnableASAN>
+    <UseInteloneTBB>true</UseInteloneTBB>
+    <UseMpiLibrary1A>MSMPI</UseMpiLibrary1A>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteRelease|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -106,6 +112,8 @@
     <EnableDPCppRuntimeEnvironment>false</EnableDPCppRuntimeEnvironment>
     <EnableASAN>false</EnableASAN>
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+    <UseInteloneTBB>true</UseInteloneTBB>
+    <UseMpiLibrary1A>MSMPI</UseMpiLibrary1A>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -243,6 +251,7 @@
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <PreprocessorDefinitions>$CONFIGURATION=$(Configuration);$APPNAME=$(ProjectName);_DEBUG;_AMD64_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <CCppSupport>Cpp20Support</CCppSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -257,6 +266,8 @@
       </LargeAddressAware>
       <SwapRunFromCD />
       <SwapRunFromNET />
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|x64'">
@@ -280,6 +291,7 @@
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <PreprocessorDefinitions>$CONFIGURATION=$(Configuration);$APPNAME=$(ProjectName);_DEBUG;_AMD64_;$CONFIGURATION=$(Configuration);$APPNAME=$(ProjectName);_AMD64_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <CCppSupport>Cpp20Support</CCppSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -294,6 +306,8 @@
       </LargeAddressAware>
       <SwapRunFromCD />
       <SwapRunFromNET />
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -324,9 +338,10 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <RemoveUnreferencedCodeData>false</RemoveUnreferencedCodeData>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
-      <Optimization>MinSpace</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <OmitFramePointers>true</OmitFramePointers>
       <PreprocessorDefinitions>$CONFIGURATION=$(Configuration);$APPNAME=$(ProjectName);NDEBUG;_AMD64_;$CONFIGURATION=$(Configuration);$APPNAME=$(ProjectName);_AMD64_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CCppSupport>Cpp20Support</CCppSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -344,6 +359,8 @@
       </LargeAddressAware>
       <SwapRunFromCD />
       <SwapRunFromNET />
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RemoteRelease|x64'">
@@ -377,6 +394,7 @@
       <RemoveUnreferencedCodeData>false</RemoveUnreferencedCodeData>
       <UseUnicodeForAssemblerListing>false</UseUnicodeForAssemblerListing>
       <PreprocessorDefinitions>$CONFIGURATION=$(Configuration);$APPNAME=$(ProjectName);NDEBUG;_AMD64_;$CONFIGURATION=$(Configuration);$APPNAME=$(ProjectName);_AMD64_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CCppSupport>Cpp20Support</CCppSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -393,6 +411,8 @@
       </LargeAddressAware>
       <SwapRunFromCD />
       <SwapRunFromNET />
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -434,18 +454,18 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="TestOrdered2.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='RemoteRelease|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="TestOrdered3.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='RemoteRelease|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="TestOrderedLockStdMutex.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='RemoteRelease|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="TestOrderedOther.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='RemoteRelease|x64'">true</ExcludedFromBuild>
