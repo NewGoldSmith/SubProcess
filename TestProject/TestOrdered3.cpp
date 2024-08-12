@@ -98,16 +98,7 @@ int main(){
 		for ( size_t i = 0; i < NUM_THREADS; ++i ){ // 16
 			DWORD dw;
 			if ( !((dw = ::WaitForSingleObject(threads[ i ], INFINITE)) == WAIT_OBJECT_0) ){
-				switch ( dw ){
-				case WAIT_TIMEOUT:
-				{
-					_MES("time out" + to_string(i));
-					break;
-				}
-				default:
-					ENOut(::GetLastError());
-					break;
-				}
+				ENOut(::GetLastError());
 			}
 		}
 
